@@ -2219,9 +2219,9 @@ function paintWatermark(c, plan, tiles) {
   c.fillStyle = bg;
   c.fillRect(0, barY, W, barH);
 
-  const accent = Math.max(2, W * 0.0035);
+  /*const accent = Math.max(2, W * 0.0035);
   c.fillStyle = '#3b82f6';
-  c.fillRect(0, s.position === 'bottom' ? barY : barY + barH - accent, W, accent);
+  c.fillRect(0, s.position === 'bottom' ? barY : barY + barH - accent, W, accent);*/
 
   if (plan.wantMap && mapSize) {
     const box = {
