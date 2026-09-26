@@ -1,0 +1,3337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Pro Geotag — Studio Geotag &amp; Watermark</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563eb;--primary-600:#1d4ed8;--primary-50:#eff6ff;
+  --bg:#f1f5f9;--surface:#fff;
+  --sidebar-bg:#0f172a;--sidebar-bg-2:#131f36;--sidebar-fg:#94a3b8;
+  --sidebar-item-active:#1e293b;
+  --border:#e2e8f0;--border-strong:#cbd5e1;
+  --text:#0f172a;--text-soft:#475569;--muted:#64748b;--muted-2:#94a3b8;
+  --success:#16a34a;--danger:#dc2626;--warning:#d97706;
+  --radius:16px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(15,23,42,.06);
+  --shadow-sm:0 2px 8px -2px rgba(15,23,42,.08),0 1px 3px -1px rgba(15,23,42,.05);
+  --shadow-md:0 12px 28px -12px rgba(15,23,42,.16),0 4px 10px -4px rgba(15,23,42,.06);
+  --shadow-lg:0 28px 56px -20px rgba(15,23,42,.28);
+  --sidebar-w:264px;--topbar-h:68px;--ease:cubic-bezier(.4,0,.2,1);
+}
+html,body{height:100%}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  overflow:hidden;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+img{max-width:100%}
+
+.app{display:flex;height:100dvh;overflow:hidden}
+
+.sidebar{
+  width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+  background:linear-gradient(180deg,var(--sidebar-bg) 0%,var(--sidebar-bg-2) 100%);
+  display:flex;flex-direction:column;z-index:60;
+  transition:transform .3s var(--ease);
+}
+.sidebar-brand{
+  display:flex;align-items:center;gap:12px;
+  padding:20px 20px 18px;border-bottom:1px solid rgba(148,163,184,.12);
+}
+.brand-mark{
+  width:42px;height:42px;border-radius:12px;flex:0 0 42px;
+  display:grid;place-items:center;
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  color:#fff;font-size:19px;box-shadow:0 8px 20px -6px rgba(37,99,235,.7);
+}
+.brand-text{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.brand-text strong{color:#fff;font-size:16px;font-weight:700;letter-spacing:-.2px}
+.brand-text span{color:var(--sidebar-fg);font-size:12px;font-weight:500}
+
+.sidebar-nav{flex:1;overflow-y:auto;padding:18px 12px}
+.nav-label{
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:#475569;padding:0 12px 10px;
+}
+.nav-item{
+  width:100%;display:flex;align-items:center;gap:12px;
+  padding:11px 14px;border-radius:var(--radius-sm);
+  color:var(--sidebar-fg);font-size:14px;font-weight:500;
+  transition:background .18s var(--ease),color .18s var(--ease);
+  text-align:left;position:relative;margin-bottom:2px;
+}
+.nav-item i.nav-icon{width:18px;font-size:15px;text-align:center;flex:0 0 18px}
+.nav-item:hover{background:rgba(148,163,184,.1);color:#e2e8f0}
+.nav-item.active{background:var(--sidebar-item-active);color:#fff;font-weight:600}
+.nav-item.active::before{
+  content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);
+  width:3px;height:22px;border-radius:0 4px 4px 0;background:#3b82f6;
+}
+.nav-item .nav-check{
+  margin-left:auto;font-size:11px;color:#22c55e;
+  opacity:0;transform:scale(.6);transition:.2s var(--ease);
+}
+.nav-item.done .nav-check{opacity:1;transform:scale(1)}
+
+.sidebar-footer{padding:16px;border-top:1px solid rgba(148,163,184,.12)}
+.storage-chip{
+  display:flex;align-items:center;gap:9px;
+  font-size:11.5px;color:var(--sidebar-fg);
+  background:rgba(148,163,184,.08);padding:10px 12px;border-radius:10px;
+}
+.storage-chip i{color:#22c55e}
+
+.sidebar-backdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);
+  backdrop-filter:blur(2px);z-index:55;opacity:0;pointer-events:none;
+  transition:opacity .25s var(--ease);
+}
+.sidebar-backdrop.show{opacity:1;pointer-events:auto}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{
+  height:var(--topbar-h);flex:0 0 var(--topbar-h);
+  display:flex;align-items:center;gap:14px;padding:0 24px;
+  background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);z-index:40;
+}
+.topbar-title{min-width:0;flex:1}
+.topbar-title h1{font-size:17px;font-weight:700;letter-spacing:-.3px;line-height:1.2}
+.topbar-title p{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.icon-btn{
+  width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+  color:var(--text-soft);font-size:16px;background:var(--surface);
+  border:1px solid var(--border);transition:.18s var(--ease);
+}
+.icon-btn:hover{background:var(--bg);color:var(--text)}
+.only-mobile{display:none}
+
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:12px;font-weight:600;color:var(--text-soft);
+  background:var(--bg);border:1px solid var(--border);
+  padding:7px 12px;border-radius:20px;white-space:nowrap;
+}
+.chip i{color:var(--primary);font-size:12px}
+
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:26px 24px 40px;scroll-behavior:smooth}
+.panel-container{max-width:880px;margin:0 auto;transition:max-width .3s var(--ease)}
+.panel-container.wide{max-width:1180px}
+
+.panel{display:none;flex-direction:column;gap:18px;animation:panelIn .3s var(--ease)}
+.panel.active{display:flex}
+@keyframes panelIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);
+}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.card-head > i:first-child{
+  width:34px;height:34px;flex:0 0 34px;border-radius:10px;
+  display:grid;place-items:center;font-size:14px;
+  background:var(--primary-50);color:var(--primary);
+}
+.card-head h2{font-size:14.5px;font-weight:700;letter-spacing:-.2px;color:var(--text)}
+.card-head .spacer{flex:1}
+.muted{font-size:13.5px;color:var(--muted);line-height:1.65}
+
+.field{margin-bottom:15px}
+.field:last-child{margin-bottom:0}
+.field > label{display:block;font-size:12.5px;font-weight:600;color:var(--text-soft);margin-bottom:6px}
+.form-control{
+  width:100%;padding:11px 13px;
+  border:1.5px solid var(--border);border-radius:var(--radius-xs);
+  font-size:14px;background:#fff;
+  transition:border-color .18s var(--ease),box-shadow .18s var(--ease);
+  font-family:inherit;
+}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3.5px rgba(37,99,235,.13)}
+textarea.form-control{resize:vertical;min-height:66px;line-height:1.55}
+select.form-control{cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8.5 1.5 4h9z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;
+}
+.form-control.mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.1px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.input-row{display:flex;gap:8px;align-items:stretch}
+.input-row .form-control{flex:1}
+.hint{font-size:12.5px;color:var(--muted-2);margin-top:10px;line-height:1.55}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 18px;border-radius:var(--radius-xs);
+  font-size:13.5px;font-weight:600;white-space:nowrap;
+  transition:transform .16s var(--ease),background .16s var(--ease),box-shadow .16s var(--ease),border-color .16s var(--ease);
+  background:var(--bg);color:var(--text-soft);border:1.5px solid transparent;
+}
+.btn:active{transform:scale(.975)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 6px 16px -6px rgba(37,99,235,.6)}
+.btn-primary:hover{background:var(--primary-600);transform:translateY(-1px)}
+.btn-success{background:var(--success);color:#fff;box-shadow:0 6px 16px -6px rgba(22,163,74,.55)}
+.btn-success:hover{background:#15803d;transform:translateY(-1px)}
+.btn-outline{background:#fff;border-color:var(--border-strong);color:var(--text-soft)}
+.btn-outline:hover{background:var(--bg);border-color:var(--muted-2)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-drive{background:#1a73e8;color:#fff;box-shadow:0 6px 16px -6px rgba(26,115,232,.6)}
+.btn-drive:hover{background:#1557b0;transform:translateY(-1px)}
+.btn-sm{padding:8px 14px;font-size:12.5px}
+.btn-block{width:100%}
+.btn-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+.btn-row .btn{flex:1 1 auto}
+
+.workflow-nav{
+  display:flex;justify-content:space-between;gap:12px;margin-top:8px;
+  padding-top:18px;border-top:1px solid var(--border);
+}
+.workflow-nav .btn{flex:0 0 auto}
+.workflow-nav .btn.next{margin-left:auto}
+
+.dropzone{
+  border:2px dashed var(--border-strong);border-radius:var(--radius-sm);
+  padding:38px 20px;text-align:center;cursor:pointer;
+  transition:.2s var(--ease);background:#fbfdff;
+}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-50);transform:translateY(-1px)}
+.dropzone i{font-size:32px;color:var(--primary);opacity:.8;margin-bottom:12px;display:block}
+.dropzone p{font-size:14.5px;color:var(--text-soft);margin-bottom:5px}
+.dropzone p strong{color:var(--primary);font-weight:700}
+.dropzone span{font-size:12px;color:var(--muted-2)}
+
+.info-list{
+  margin-top:15px;display:flex;flex-direction:column;gap:9px;
+  background:var(--bg);border-radius:var(--radius-xs);padding:14px 16px;
+}
+.info-row{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.info-row span{color:var(--muted)}
+.info-row strong{font-weight:600;color:var(--text);text-align:right;word-break:break-all}
+
+.exif-status{
+  font-size:13px;padding:13px 15px;border-radius:var(--radius-xs);
+  background:var(--bg);color:var(--muted);border-left:3px solid var(--border-strong);
+  line-height:1.6;
+}
+.exif-status.ok{background:#f0fdf4;color:#15803d;border-left-color:var(--success)}
+.exif-status.warn{background:#fffbeb;color:#b45309;border-left-color:var(--warning)}
+
+.suggestions{margin-top:8px;max-height:230px;overflow-y:auto;border-radius:var(--radius-xs);display:none}
+.suggestions.show{display:block;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.suggestion-item{
+  padding:11px 14px;font-size:13px;cursor:pointer;
+  border-bottom:1px solid var(--border);line-height:1.5;
+  display:flex;gap:10px;align-items:flex-start;
+  transition:background .14s var(--ease);
+}
+.suggestion-item:last-child{border-bottom:none}
+.suggestion-item:hover{background:var(--primary-50)}
+.suggestion-item i{color:var(--primary);margin-top:2px;flex:0 0 auto}
+.status-line{font-size:12.5px;color:var(--warning);margin-top:8px;display:none}
+.status-line.show{display:block}
+
+.map-wrap{border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);position:relative}
+#mainMap{width:100%;height:360px;background:var(--bg);z-index:1}
+.layer-switch{display:flex;gap:3px;background:var(--bg);padding:3px;border-radius:9px;margin-left:auto;border:1px solid var(--border)}
+.layer-btn{padding:6px 13px;border-radius:6px;font-size:12.5px;font-weight:600;color:var(--muted);transition:.16s var(--ease)}
+.layer-btn:hover{color:var(--text-soft)}
+.layer-btn.active{background:#fff;color:var(--primary);box-shadow:var(--shadow-xs)}
+.leaflet-container{font-family:inherit}
+.leaflet-control-attribution{font-size:10px!important}
+.check-row{display:flex;align-items:center;gap:9px;margin-top:13px;font-size:13px;color:var(--text-soft);cursor:pointer;user-select:none}
+.check-row input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+
+.coord-preview{
+  margin-top:13px;padding:13px 15px;border-radius:var(--radius-xs);
+  background:#0f172a;color:#fbbf24;
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  font-size:13px;font-weight:600;letter-spacing:.2px;word-break:break-all;line-height:1.55;
+}
+
+.switch-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+  font-size:13.5px;font-weight:500;color:var(--text-soft);cursor:pointer;
+}
+.switch-row:last-of-type{border-bottom:none}
+.switch-row input{
+  appearance:none;-webkit-appearance:none;flex:0 0 auto;
+  width:42px;height:23px;border-radius:20px;background:var(--border-strong);
+  position:relative;transition:background .2s var(--ease);cursor:pointer;
+}
+.switch-row input::after{
+  content:'';position:absolute;top:2.5px;left:2.5px;
+  width:18px;height:18px;border-radius:50%;background:#fff;
+  transition:transform .2s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+.switch-row input:checked{background:var(--primary)}
+.switch-row input:checked::after{transform:translateX(19px)}
+
+.range{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:6px;outline:none;cursor:pointer}
+.range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:19px;height:19px;border-radius:50%;background:var(--primary);border:3px solid #fff;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,.45)}
+.range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--primary);border:3px solid #fff;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,.45)}
+
+.ratio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ratio-btn{
+  padding:10px 8px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;
+  background:var(--bg);color:var(--text-soft);border:1.5px solid transparent;
+  transition:.16s var(--ease);
+}
+.ratio-btn:hover{background:#e8eef7}
+.ratio-btn.active{background:var(--primary-50);border-color:var(--primary);color:var(--primary)}
+
+.zoom-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;background:var(--bg);
+  border:1px solid var(--border);border-radius:30px;
+  margin-bottom:14px;
+}
+.zoom-btn{
+  width:32px;height:32px;border-radius:50%;flex:0 0 32px;
+  display:grid;place-items:center;
+  background:#fff;border:1px solid var(--border);
+  color:var(--text-soft);font-size:12px;
+  transition:.15s var(--ease);
+}
+.zoom-btn:hover{background:var(--primary-50);border-color:var(--primary);color:var(--primary)}
+.zoom-slider{
+  flex:1;height:4px;-webkit-appearance:none;appearance:none;
+  background:var(--border-strong);border-radius:4px;outline:none;
+}
+.zoom-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--primary);border:2px solid #fff;cursor:pointer;
+  box-shadow:0 2px 6px rgba(37,99,235,.4);
+}
+.zoom-slider::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--primary);border:2px solid #fff;cursor:pointer;
+}
+.zoom-label{
+  font-size:12px;font-weight:700;color:var(--primary);
+  min-width:48px;text-align:center;font-variant-numeric:tabular-nums;
+}
+
+.preview-shell{
+  position:relative;background:#0b1220;
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  min-height:420px;overflow:hidden;
+  display:grid;place-items:center;padding:16px;
+}
+.preview-shell canvas{
+  display:none;
+  border-radius:8px;touch-action:none;
+  background:#fff;user-select:none;
+  cursor:grab;
+  box-shadow:0 16px 40px -16px rgba(0,0,0,.6);
+}
+.preview-shell.has-image canvas{display:block}
+.preview-shell canvas.crop-mode{cursor:crosshair}
+.preview-shell canvas.panning{cursor:grabbing}
+.placeholder-text{text-align:center;color:var(--muted-2);padding:40px 20px;pointer-events:none}
+.placeholder-text i{font-size:38px;display:block;margin-bottom:14px;opacity:.4}
+.placeholder-text p{font-size:15px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.placeholder-text span{font-size:12.5px}
+
+.size-readout{
+  display:flex;align-items:center;gap:9px;justify-content:center;
+  font-size:13px;color:var(--muted);background:var(--bg);
+  padding:12px 14px;border-radius:var(--radius-xs);margin:14px 0;
+}
+.size-readout strong{color:var(--primary);font-weight:700}
+.size-readout i{color:var(--primary);opacity:.7}
+
+.empty-hint{
+  display:flex;align-items:center;gap:12px;
+  background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+  padding:14px 16px;border-radius:var(--radius-xs);font-size:13px;line-height:1.55;
+}
+.empty-hint i{font-size:18px;color:#d97706;flex:0 0 auto}
+
+.crop-mode-badge{
+  display:none;align-items:center;gap:8px;
+  background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;
+  padding:10px 14px;border-radius:var(--radius-xs);
+  font-size:12.5px;font-weight:600;line-height:1.5;margin-bottom:12px;
+}
+.crop-mode-badge.show{display:flex}
+.crop-mode-badge i{color:var(--primary)}
+
+/* ---------- DESKRIPSI ---------- */
+.desc-counter{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;color:var(--muted-2);margin-top:6px;
+}
+.desc-counter strong{color:var(--primary);font-weight:700}
+.desc-preview{
+  margin-top:16px;padding:14px 16px;border-radius:var(--radius-xs);
+  background:linear-gradient(135deg,#1e293b,#0f172a);
+  color:#e2e8f0;font-size:13px;line-height:1.6;
+  border-left:3px solid #3b82f6;
+}
+.desc-preview .desc-label{
+  font-size:11px;font-weight:700;letter-spacing:.08em;
+  color:#94a3b8;text-transform:uppercase;margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;
+}
+.desc-preview .desc-label i{color:#60a5fa;font-size:11px}
+.desc-preview .desc-body{white-space:pre-wrap;word-break:break-word}
+.desc-preview .desc-body:empty::before{
+  content:'Belum ada deskripsi kegiatan.';
+  color:#64748b;font-style:italic;
+}
+
+/* ---------- DRIVE ---------- */
+.drive-card{
+  background:linear-gradient(180deg,#f8fafc 0%,#fff 100%);
+  border:1.5px solid #e2e8f0;
+}
+.drive-card .card-head > i:first-child{
+  background:linear-gradient(135deg,#4285f4,#1a73e8);color:#fff;
+}
+.drive-status{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:12px 14px;border-radius:var(--radius-xs);
+  font-size:13px;line-height:1.55;
+  background:var(--bg);color:var(--muted);border-left:3px solid var(--border-strong);
+  margin-top:14px;
+}
+.drive-status i{margin-top:2px;flex:0 0 auto}
+.drive-status.ok{background:#f0fdf4;color:#15803d;border-left-color:var(--success)}
+.drive-status.ok i{color:var(--success)}
+.drive-status.err{background:#fef2f2;color:#b91c1c;border-left-color:var(--danger)}
+.drive-status.err i{color:var(--danger)}
+.drive-status.info{background:#eff6ff;color:#1e40af;border-left-color:var(--primary)}
+.drive-status.info i{color:var(--primary)}
+.drive-status.loading{background:#fffbeb;color:#b45309;border-left-color:var(--warning)}
+.drive-status.loading i{color:var(--warning)}
+.drive-status a{color:inherit;text-decoration:underline;font-weight:600}
+
+.drive-config-toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;padding:12px 14px;margin-top:14px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--radius-xs);
+  font-size:13px;font-weight:600;color:var(--text-soft);
+  transition:.16s var(--ease);
+}
+.drive-config-toggle:hover{background:#e8eef7;color:var(--text)}
+.drive-config-toggle i.chev{transition:transform .25s var(--ease)}
+.drive-config-toggle.open i.chev{transform:rotate(180deg)}
+
+.drive-config{
+  display:none;padding-top:16px;margin-top:16px;
+  border-top:1px dashed var(--border-strong);
+}
+.drive-config.show{display:block;animation:panelIn .25s var(--ease)}
+
+.appsscript-box{
+  display:none;
+  background:#0f172a;color:#e2e8f0;
+  border-radius:var(--radius-xs);
+  padding:0;margin-top:14px;
+  overflow:hidden;border:1px solid #1e293b;
+}
+.appsscript-box.show{display:block;animation:panelIn .25s var(--ease)}
+.appsscript-box-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;background:#1e293b;
+  border-bottom:1px solid #0f172a;
+}
+.appsscript-box-head span{font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.05em;text-transform:uppercase}
+.appsscript-box pre{
+  padding:16px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  font-size:11.5px;line-height:1.7;color:#cbd5e1;
+  max-height:400px;overflow:auto;white-space:pre;tab-size:2;
+}
+.appsscript-box pre::-webkit-scrollbar{width:8px;height:8px}
+.appsscript-box pre::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+
+.copy-code-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(148,163,184,.15);color:#cbd5e1;
+  padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;
+  transition:.15s var(--ease);
+}
+.copy-code-btn:hover{background:rgba(148,163,184,.28);color:#fff}
+
+.steps-list{
+  counter-reset:step;list-style:none;padding:0;margin:0;
+  display:flex;flex-direction:column;gap:10px;
+}
+.steps-list li{
+  position:relative;padding-left:36px;
+  font-size:13px;color:var(--text-soft);line-height:1.6;
+}
+.steps-list li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:0;
+  width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--primary-50);color:var(--primary);
+  font-weight:700;font-size:12px;
+}
+.steps-list li code{
+  background:var(--bg);padding:2px 7px;border-radius:4px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:12px;color:#0f172a;font-weight:600;
+}
+
+.toast-container{
+  position:fixed;bottom:22px;right:22px;z-index:9999;
+  display:flex;flex-direction:column;gap:10px;pointer-events:none;
+  max-width:min(360px,calc(100vw - 44px));
+}
+.toast{
+  display:flex;align-items:flex-start;gap:11px;
+  background:#0f172a;color:#e2e8f0;
+  padding:13px 16px;border-radius:12px;font-size:13.5px;font-weight:500;
+  box-shadow:var(--shadow-lg);line-height:1.5;
+  opacity:0;transform:translateY(14px) scale(.96);
+  transition:opacity .25s var(--ease),transform .25s var(--ease);
+  border-left:3px solid var(--primary);
+}
+.toast.show{opacity:1;transform:none}
+.toast i{margin-top:2px;flex:0 0 auto}
+.toast-success{border-left-color:var(--success)}.toast-success i{color:#4ade80}
+.toast-error{border-left-color:var(--danger)}.toast-error i{color:#f87171}
+.toast-warning{border-left-color:var(--warning)}.toast-warning i{color:#fbbf24}
+.toast-info i{color:#60a5fa}
+
+.content::-webkit-scrollbar,.sidebar-nav::-webkit-scrollbar,.suggestions::-webkit-scrollbar{width:8px}
+.content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px;border:2px solid var(--bg)}
+.content::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+.sidebar-nav::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+
+@media (max-width:1024px){
+  .only-mobile{display:grid}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);box-shadow:var(--shadow-lg)}
+  .sidebar.open{transform:translateX(0)}
+  .topbar{padding:0 16px;gap:12px}
+  .content{padding:18px 16px 32px}
+}
+@media (max-width:640px){
+  :root{--topbar-h:62px}
+  .topbar-title p{display:none}
+  .topbar-actions .chip{display:none}
+  .content{padding:12px 12px 28px}
+  .card{padding:17px;border-radius:14px}
+  .grid-2{grid-template-columns:1fr}
+  .btn-row .btn{flex:1 1 100%}
+  .layer-switch{margin-left:0;width:100%}
+  .layer-btn{flex:1}
+  #mainMap{height:270px}
+  .toast-container{left:12px;right:12px;bottom:12px;max-width:none}
+  .ratio-grid{grid-template-columns:repeat(2,1fr)}
+  .preview-shell{min-height:280px;padding:10px}
+  .workflow-nav{flex-direction:column-reverse}
+  .workflow-nav .btn{width:100%}
+  .workflow-nav .btn.next{margin-left:0}
+  .zoom-bar{padding:6px 10px;gap:6px}
+  .zoom-btn{width:28px;height:28px;flex:0 0 28px}
+  .zoom-label{min-width:42px;font-size:11px}
+  .appsscript-box pre{font-size:10.5px;padding:12px}
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark"><i class="fas fa-map-pin"></i></div>
+      <div class="brand-text">
+        <strong>Pro Geotag</strong>
+        <span>Studio v3.5</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <p class="nav-label">Alur Kerja</p>
+
+      <button class="nav-item active" data-panel="upload">
+        <i class="fas fa-cloud-arrow-up nav-icon"></i>
+        <span>Unggah Foto</span>
+        <i class="fas fa-check nav-check"></i>
+      </button>
+
+      <button class="nav-item" data-panel="location">
+        <i class="fas fa-map-location-dot nav-icon"></i>
+        <span>Lokasi &amp; Peta</span>
+        <i class="fas fa-check nav-check"></i>
+      </button>
+
+      <button class="nav-item" data-panel="watermark">
+        <i class="fas fa-heading nav-icon"></i>
+        <span>Watermark</span>
+        <i class="fas fa-check nav-check"></i>
+      </button>
+
+      <button class="nav-item" data-panel="description">
+        <i class="fas fa-clipboard-list nav-icon"></i>
+        <span>Deskripsi Kegiatan</span>
+        <i class="fas fa-check nav-check"></i>
+      </button>
+
+      <button class="nav-item" data-panel="preview">
+        <i class="fas fa-eye nav-icon"></i>
+        <span>Preview &amp; Crop</span>
+      </button>
+
+      <button class="nav-item" data-panel="export">
+        <i class="fas fa-file-export nav-icon"></i>
+        <span>Ekspor &amp; Simpan</span>
+        <i class="fas fa-check nav-check"></i>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="storage-chip">
+        <i class="fas fa-shield-halved"></i>
+        <span>Semua diproses lokal di peramban</span>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="main">
+
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="menuToggle" aria-label="Buka menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="topbar-title">
+        <h1 id="panelTitle">Unggah Foto</h1>
+        <p id="panelSubtitle">Pilih foto dari perangkat untuk mulai membuat watermark geotag</p>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="chip" id="chipDims"><i class="fas fa-image"></i> Belum ada gambar</span>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+      <div class="panel-container" id="panelContainer">
+
+        <!-- ============ PANEL: UPLOAD ============ -->
+        <section class="panel active" id="panel-upload">
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-cloud-arrow-up"></i>
+              <h2>Unggah Gambar</h2>
+            </div>
+
+            <div class="dropzone" id="dropzone" tabindex="0" role="button">
+              <i class="fas fa-image"></i>
+              <p><strong>Klik untuk memilih</strong> atau seret &amp; lepas foto</p>
+              <span>JPG · PNG · WEBP — maksimal 25 MB · atau tempel (Ctrl+V)</span>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" hidden>
+
+            <div class="info-list" id="fileInfo" hidden></div>
+
+            <div class="workflow-nav">
+              <span></span>
+              <button class="btn btn-primary next" id="goLocation" disabled>
+                Lanjut ke Lokasi <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-wand-magic-sparkles"></i>
+              <h2>Deteksi Otomatis</h2>
+            </div>
+            <p class="muted">
+              Jika foto menyimpan data GPS (EXIF), koordinat, alamat, dan waktu akan terisi
+              otomatis tanpa perlu mengetik manual.
+            </p>
+            <div class="exif-status" id="exifStatus" style="margin-top:14px;">
+              <i class="fas fa-circle-info"></i> Menunggu foto diunggah…
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PANEL: LOCATION ============ -->
+        <section class="panel" id="panel-location">
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-magnifying-glass-location"></i>
+              <h2>Cari Lokasi</h2>
+            </div>
+            <div class="input-row">
+              <input type="text" id="searchAddress" class="form-control"
+                     placeholder="Nama tempat, jalan, atau kota…" autocomplete="off">
+              <button class="btn btn-primary" id="searchBtn" aria-label="Cari">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+            <div class="suggestions" id="suggestions"></div>
+            <div class="status-line" id="searchStatus"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-map"></i>
+              <h2>Peta Interaktif</h2>
+              <div class="layer-switch" id="layerSwitch">
+                <button class="layer-btn active" data-layer="street">Jalan</button>
+                <button class="layer-btn" data-layer="imagery">Satelit</button>
+                <button class="layer-btn" data-layer="topo">Topo</button>
+              </div>
+            </div>
+
+            <div class="map-wrap"><div id="mainMap"></div></div>
+
+            <label class="check-row">
+              <input type="checkbox" id="chkLabels" checked>
+              <span>Tampilkan label jalan &amp; nama tempat (mode satelit)</span>
+            </label>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-crosshairs"></i>
+              <h2>Koordinat</h2>
+            </div>
+
+            <div class="grid-2">
+              <div class="field">
+                <label for="lat">Latitude</label>
+                <input type="number" id="lat" step="any" class="form-control" value="-7.946271">
+              </div>
+              <div class="field">
+                <label for="long">Longitude</label>
+                <input type="number" id="long" step="any" class="form-control" value="112.615781">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="coordFormat">Format Koordinat Watermark</label>
+              <select id="coordFormat" class="form-control">
+                <option value="degree">Desimal — Lat -7.946271° Long 112.615781°</option>
+                <option value="dms">DMS — 7°56'46.6"S 112°36'56.8"E</option>
+                <option value="utm">UTM — 49S 678901E 9123456N</option>
+              </select>
+            </div>
+
+            <div class="coord-preview" id="coordPreview">—</div>
+
+            <div class="btn-row">
+              <button class="btn btn-outline btn-sm" id="btnReverse">
+                <i class="fas fa-rotate"></i> Ambil Alamat
+              </button>
+              <button class="btn btn-outline btn-sm" id="btnGps">
+                <i class="fas fa-satellite-dish"></i> GPS Saya
+              </button>
+              <button class="btn btn-outline btn-sm" id="btnCopyCoords">
+                <i class="fas fa-copy"></i> Salin
+              </button>
+            </div>
+
+            <div class="workflow-nav">
+              <button class="btn btn-outline prev" data-goto="upload">
+                <i class="fas fa-arrow-left"></i> Kembali
+              </button>
+              <button class="btn btn-primary next" data-goto="watermark">
+                Lanjut ke Watermark <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PANEL: WATERMARK ============ -->
+        <section class="panel" id="panel-watermark">
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-heading"></i>
+              <h2>Konten Watermark</h2>
+            </div>
+
+            <div class="field">
+              <label for="customText">Judul — Baris 1</label>
+              <input type="text" id="customText" class="form-control" placeholder="🧿 GPS Camera">
+            </div>
+
+            <div class="field">
+              <label for="alamatLengkap">Alamat &amp; Kode Pos — Baris 2</label>
+              <textarea id="alamatLengkap" class="form-control" rows="2"
+                        placeholder="Alamat lengkap akan muncul di sini…"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="timeInput">Waktu</label>
+              <div class="input-row">
+                <input type="datetime-local" id="timeInput" class="form-control">
+                <button class="btn btn-outline btn-sm" id="btnNow">
+                  <i class="fas fa-clock"></i> Kini
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-sliders"></i>
+              <h2>Tampilan Watermark</h2>
+            </div>
+
+            <label class="switch-row"><span>Peta mini satelit</span>
+              <input type="checkbox" id="chkMap" checked></label>
+            <label class="switch-row"><span>Baris koordinat</span>
+              <input type="checkbox" id="chkCoords" checked></label>
+            <label class="switch-row"><span>Baris alamat</span>
+              <input type="checkbox" id="chkAddress" checked></label>
+            <label class="switch-row"><span>Baris deskripsi kegiatan</span>
+              <input type="checkbox" id="chkDesc"></label>
+            <label class="switch-row"><span>Baris waktu</span>
+              <input type="checkbox" id="chkTime" checked></label>
+
+            <div class="grid-2" style="margin-top:18px;">
+              <div class="field" style="margin-bottom:0;">
+                <label for="wmPosition">Posisi Panel</label>
+                <select id="wmPosition" class="form-control">
+                  <option value="bottom">Bawah</option>
+                  <option value="top">Atas</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="wmFontScale">Skala Teks — <span id="fontScaleValue">100%</span></label>
+                <input type="range" id="wmFontScale" class="range" min="60" max="160" value="100">
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="workflow-nav" style="border-top:none;padding-top:0;margin-top:0;">
+              <button class="btn btn-outline prev" data-goto="location">
+                <i class="fas fa-arrow-left"></i> Kembali
+              </button>
+              <button class="btn btn-primary next" data-goto="description">
+                Deskripsi Kegiatan <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PANEL: DESKRIPSI KEGIATAN ============ -->
+        <section class="panel" id="panel-description">
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-clipboard-list"></i>
+              <h2>Deskripsi Kegiatan</h2>
+            </div>
+            <p class="muted" style="margin-bottom:16px;">
+              Isi deskripsi kegiatan atau keterangan foto ini. Deskripsi akan disimpan
+              ke kolom <strong>Deskripsi Kegiatan</strong> pada Google Spreadsheet saat Anda
+              menyimpan foto ke Google Drive. Secara opsional dapat juga ditampilkan pada watermark.
+            </p>
+
+            <div class="field">
+              <label for="deskripsiKegiatan">
+                <i class="fas fa-pen-to-square" style="color:var(--primary);"></i>
+                Deskripsi / Keterangan
+              </label>
+              <textarea id="deskripsiKegiatan" class="form-control" rows="5"
+                        maxlength="1000"
+                        placeholder="Contoh: Survei lokasi pembangunan jembatan, titik koordinat patok A-12, kondisi cuaca cerah, tim 3 orang…"></textarea>
+              <div class="desc-counter">
+                <span>Maksimal 1000 karakter</span>
+                <span><strong id="descCount">0</strong> / 1000</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-lightbulb"></i>
+              <h2>Saran Pengisian</h2>
+            </div>
+            <p class="muted">
+              Tuliskan informasi yang berguna untuk dokumentasi lapangan:
+            </p>
+            <ul style="margin-top:12px;padding-left:22px;font-size:13px;color:var(--text-soft);line-height:1.8;">
+              <li><strong>Jenis kegiatan</strong> — survei, inspeksi, dokumentasi, penelitian.</li>
+              <li><strong>Objek / lokasi spesifik</strong> — nama bangunan, patok, atau area.</li>
+              <li><strong>Kondisi lapangan</strong> — cuaca, akses, tingkat kesulitan.</li>
+              <li><strong>Personel / tim</strong> — jumlah, peran, atau instansi.</li>
+              <li><strong>Tindak lanjut</strong> — rekomendasi atau catatan penting.</li>
+            </ul>
+
+            <div class="desc-preview">
+              <div class="desc-label">
+                <i class="fas fa-eye"></i> Pratinjau Deskripsi
+              </div>
+              <div class="desc-body" id="descPreview"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="workflow-nav" style="border-top:none;padding-top:0;margin-top:0;">
+              <button class="btn btn-outline prev" data-goto="watermark">
+                <i class="fas fa-arrow-left"></i> Kembali
+              </button>
+              <button class="btn btn-primary next" data-goto="preview">
+                Lihat Preview <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PANEL: PREVIEW ============ -->
+        <section class="panel" id="panel-preview">
+
+          <div id="previewEmpty" class="card">
+            <div class="empty-hint">
+              <i class="fas fa-circle-info"></i>
+              <div>
+                <strong>Belum ada foto.</strong> Silakan unggah foto terlebih dahulu di menu
+                <a href="#" data-goto="upload" style="color:var(--primary);font-weight:600;">Unggah Foto</a>.
+              </div>
+            </div>
+          </div>
+
+          <div id="previewContent" style="display:none;flex-direction:column;gap:18px;">
+            <div class="card">
+              <div class="card-head">
+                <i class="fas fa-eye"></i>
+                <h2>Pratinjau &amp; Crop</h2>
+                <span class="spacer"></span>
+                <span class="chip" id="previewInfo">—</span>
+              </div>
+
+              <div class="crop-mode-badge" id="cropModeBadge">
+                <i class="fas fa-crop-simple"></i>
+                <span>Mode crop aktif — kotak crop <strong>tetap di layar</strong>. Zoom &amp; geser foto di belakangnya.</span>
+              </div>
+
+              <label style="display:block;font-size:12.5px;font-weight:600;color:var(--text-soft);margin-bottom:8px;">
+                <i class="fas fa-crop-simple"></i> Rasio Potong
+              </label>
+              <div class="ratio-grid" id="ratioGrid">
+                <button class="ratio-btn active" data-ratio="free">Bebas</button>
+                <button class="ratio-btn" data-ratio="1">1 : 1</button>
+                <button class="ratio-btn" data-ratio="1.3333">4 : 3</button>
+                <button class="ratio-btn" data-ratio="0.75">3 : 4</button>
+                <button class="ratio-btn" data-ratio="1.7778">16 : 9</button>
+                <button class="ratio-btn" data-ratio="0.5625">9 : 16</button>
+              </div>
+
+              <div class="btn-row" style="margin-top:14px;">
+                <button class="btn btn-primary btn-sm" id="btnEnterCrop">
+                  <i class="fas fa-vector-square"></i> Mulai Pilih Area
+                </button>
+                <button class="btn btn-success btn-sm" id="btnApplyCrop" hidden>
+                  <i class="fas fa-check"></i> Terapkan Crop
+                </button>
+                <button class="btn btn-outline btn-sm" id="btnCancelCrop" hidden>
+                  <i class="fas fa-xmark"></i> Batal
+                </button>
+              </div>
+
+              <p class="hint" id="cropHint">Pilih rasio untuk membuat kotak crop, atau seret langsung pada gambar.</p>
+            </div>
+
+            <div class="zoom-bar" id="zoomBar">
+              <button class="zoom-btn" id="zoomOut" aria-label="Perkecil" title="Perkecil">
+                <i class="fas fa-minus"></i>
+              </button>
+              <input type="range" id="zoomSlider" class="zoom-slider"
+                     min="25" max="500" step="5" value="100" aria-label="Zoom">
+              <span class="zoom-label" id="zoomLabel">100%</span>
+              <button class="zoom-btn" id="zoomIn" aria-label="Perbesar" title="Perbesar">
+                <i class="fas fa-plus"></i>
+              </button>
+              <button class="zoom-btn" id="zoomFit" aria-label="Fit" title="Sesuaikan layar">
+                <i class="fas fa-expand"></i>
+              </button>
+            </div>
+
+            <div class="card" style="padding:0;overflow:hidden;">
+              <div class="preview-shell" id="previewShell">
+                <canvas id="imageCanvas"></canvas>
+                <div class="placeholder-text" id="placeholderText">
+                  <i class="fas fa-image"></i>
+                  <p>Unggah foto untuk memulai</p>
+                  <span>Watermark &amp; peta mini dibuat otomatis</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-outline" id="btnReset">
+                <i class="fas fa-rotate-left"></i> Reset ke Gambar Asli
+              </button>
+              <button class="btn btn-success" id="downloadBtn" disabled>
+                <i class="fas fa-download"></i> Unduh Cepat
+              </button>
+            </div>
+
+            <div class="workflow-nav">
+              <button class="btn btn-outline prev" data-goto="description">
+                <i class="fas fa-arrow-left"></i> Kembali
+              </button>
+              <button class="btn btn-primary next" data-goto="export">
+                Atur Ekspor &amp; Simpan <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PANEL: EXPORT ============ -->
+        <section class="panel" id="panel-export">
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-file-export"></i>
+              <h2>Pengaturan Ekspor</h2>
+            </div>
+
+            <div class="field">
+              <label for="outputFormat">Format Berkas</label>
+              <select id="outputFormat" class="form-control">
+                <option value="jpeg">JPEG — paling kecil, disarankan</option>
+                <option value="webp">WEBP — modern &amp; efisien</option>
+                <option value="png">PNG — tanpa kompresi lossy</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="compressQuality">Kualitas — <span id="compressValue">92%</span></label>
+              <input type="range" id="compressQuality" class="range" min="10" max="100" value="92">
+            </div>
+
+            <div class="field">
+              <label for="maxWidth">Resolusi Maksimal</label>
+              <select id="maxWidth" class="form-control">
+                <option value="0">Ukuran asli (tidak diubah)</option>
+                <option value="2560">2560 px</option>
+                <option value="1920">1920 px</option>
+                <option value="1280">1280 px</option>
+                <option value="1024">1024 px</option>
+              </select>
+            </div>
+
+            <div class="size-readout">
+              <i class="fas fa-weight-hanging"></i>
+              Estimasi ukuran berkas: <strong id="estimatedSize">—</strong>
+            </div>
+
+            <button class="btn btn-success btn-block" id="downloadBtnMain" disabled>
+              <i class="fas fa-download"></i> Unduh Foto Hasil
+            </button>
+          </div>
+
+          <div class="card drive-card">
+            <div class="card-head">
+              <i class="fab fa-google-drive"></i>
+              <h2>Simpan ke Google Drive</h2>
+            </div>
+            <p class="muted" style="margin-bottom:16px;">
+              Simpan foto hasil ke folder Google Drive dan catat metadatanya — termasuk
+              <strong>Deskripsi Kegiatan</strong> — ke Google Spreadsheet melalui Apps Script Web App.
+            </p>
+
+            <button class="btn btn-drive btn-block" id="saveDriveBtn" disabled>
+              <i class="fab fa-google-drive"></i> Simpan ke Google Drive
+            </button>
+
+            <div class="drive-status" id="driveStatus">
+              <i class="fas fa-circle-info"></i>
+              <span>Belum ada aktivitas. Tekan tombol di atas untuk mulai menyimpan.</span>
+            </div>
+
+            <button class="drive-config-toggle" id="driveConfigToggle" type="button">
+              <span><i class="fas fa-gear"></i> Konfigurasi Apps Script &amp; ID</span>
+              <i class="fas fa-chevron-down chev"></i>
+            </button>
+
+            <div class="drive-config" id="driveConfig">
+              <div class="field">
+                <label for="driveWebAppUrl">Apps Script Web App URL</label>
+                <input type="url" id="driveWebAppUrl" class="form-control mono"
+                       placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+                <p class="hint">URL hasil deploy Apps Script (Akses: <strong>Siapa saja</strong>).</p>
+              </div>
+
+              <div class="field">
+                <label for="driveSpreadsheetId">Spreadsheet ID</label>
+                <input type="text" id="driveSpreadsheetId" class="form-control mono"
+                       placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz...">
+                <p class="hint">Ambil dari URL spreadsheet: <code>docs.google.com/spreadsheets/d/<b>ID</b>/edit</code></p>
+              </div>
+
+              <div class="field">
+                <label for="driveFolderId">Folder ID (Google Drive)</label>
+                <input type="text" id="driveFolderId" class="form-control mono"
+                       placeholder="1XyZAbCdEfGhIjKlMnOpQrStUv...">
+                <p class="hint">Ambil dari URL folder: <code>drive.google.com/drive/folders/<b>ID</b></code></p>
+              </div>
+
+              <div class="field" style="margin-bottom:0;">
+                <label for="driveSheetName">Nama Sheet (opsional)</label>
+                <input type="text" id="driveSheetName" class="form-control"
+                       placeholder="Geotag" value="Geotag">
+                <p class="hint">Sheet akan dibuat otomatis beserta header jika belum ada.</p>
+              </div>
+
+              <button class="btn btn-outline btn-sm btn-block" id="driveSaveConfig" style="margin-top:14px;">
+                <i class="fas fa-floppy-disk"></i> Simpan Konfigurasi
+              </button>
+
+              <button class="btn btn-outline btn-sm btn-block" id="driveTestBtn" style="margin-top:8px;">
+                <i class="fas fa-vial"></i> Test Koneksi
+              </button>
+            </div>
+
+            <button class="drive-config-toggle" id="appsscriptToggle" type="button" style="margin-top:10px;">
+              <span><i class="fas fa-code"></i> Lihat Kode Apps Script (Code.gs)</span>
+              <i class="fas fa-chevron-down chev"></i>
+            </button>
+
+            <div class="appsscript-box" id="appsscriptBox">
+              <div class="appsscript-box-head">
+                <span><i class="fas fa-file-code"></i> Code.gs</span>
+                <button class="copy-code-btn" id="copyAppsScript">
+                  <i class="fas fa-copy"></i> Salin
+                </button>
+              </div>
+<pre id="appsscriptCode">/**
+ * Pro Geotag — Apps Script Web App
+ * Simpan foto ke Google Drive + catat metadata (termasuk Deskripsi Kegiatan)
+ * ke Google Spreadsheet.
+ *
+ * CARA PAKAI:
+ * 1. Buka script.google.com → New Project
+ * 2. Hapus isi default, paste kode ini
+ * 3. Ganti SPREADSHEET_ID dan FOLDER_ID di bawah
+ * 4. Deploy → New Deployment → Web App
+ *    - Execute as: Me
+ *    - Who has access: Anyone
+ * 5. Salin URL /exec ke Pro Geotag
+ */
+
+const SPREADSHEET_ID = 'ISI_DENGAN_ID_SPREADSHEET_ANDA';
+const FOLDER_ID      = 'ISI_DENGAN_ID_FOLDER_DRIVE_ANDA';
+const SHEET_NAME     = 'Geotag';
+
+const HEADERS = [
+  'Timestamp','Nama File','URL File','File ID',
+  'Latitude','Longitude','Koordinat','Alamat',
+  'Deskripsi Kegiatan',
+  'Waktu Foto','Judul','Panjang','Lebar'
+];
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+
+    const fileName  = data.fileName || ('geotag_' + Date.now() + '.jpg');
+    const mimeType  = data.mimeType || 'image/jpeg';
+    const base64    = data.base64;
+
+    if (!base64) throw new Error('Data gambar kosong.');
+
+    // 1. Simpan ke Google Drive
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(base64),
+      mimeType,
+      fileName
+    );
+    const file = folder.createFile(blob);
+
+    // 2. Simpan metadata ke Spreadsheet
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(HEADERS);
+      sheet.getRange(1, 1, 1, HEADERS.length)
+           .setFontWeight('bold')
+           .setBackground('#0f172a')
+           .setFontColor('#ffffff');
+      sheet.setFrozenRows(1);
+    }
+
+    sheet.appendRow([
+      new Date(),
+      fileName,
+      file.getUrl(),
+      file.getId(),
+      data.lat || '',
+      data.lng || '',
+      data.coords || '',
+      data.address || '',
+      data.description || '',   // <-- Deskripsi Kegiatan
+      data.photoTime || '',
+      data.title || '',
+      data.width || '',
+      data.height || ''
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success: true,
+        fileUrl: file.getUrl(),
+        fileId: file.getId(),
+        fileName: fileName
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success: false,
+        error: String(err && err.message ? err.message : err)
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: 'ok',
+      message: 'Pro Geotag Apps Script endpoint aktif.'
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function testSetup() {
+  const folder = DriveApp.getFolderById(FOLDER_ID);
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  Logger.log('Folder OK: ' + folder.getName());
+  Logger.log('Spreadsheet OK: ' + ss.getName());
+}</pre>
+            </div>
+
+            <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border-strong);">
+              <p style="font-size:12.5px;font-weight:700;color:var(--text-soft);margin-bottom:12px;">
+                <i class="fas fa-list-check" style="color:var(--primary);"></i> Panduan Singkat
+              </p>
+              <ol class="steps-list">
+                <li>Buat Google Spreadsheet → salin <code>ID</code> dari URL.</li>
+                <li>Buat Folder di Google Drive → salin <code>ID</code> dari URL.</li>
+                <li>Buka <code>script.google.com</code> → New Project → paste kode di atas.</li>
+                <li>Isi <code>SPREADSHEET_ID</code> &amp; <code>FOLDER_ID</code> pada kode.</li>
+                <li>Deploy → Web App → Akses: <strong>Anyone</strong> → salin URL <code>/exec</code>.</li>
+                <li>Paste URL &amp; ID di konfigurasi Pro Geotag → Test Koneksi.</li>
+                <li>Isi Deskripsi Kegiatan di menu sidebar sebelum menyimpan foto.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="workflow-nav" style="border-top:none;padding-top:0;margin-top:0;">
+              <button class="btn btn-outline prev" data-goto="preview">
+                <i class="fas fa-arrow-left"></i> Kembali ke Preview
+              </button>
+              <span></span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   1. UTILITAS
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const FONT_STACK = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+function debounce(fn, ms = 300) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(2) + ' MB';
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function roundRectPath(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  if (c.roundRect) { c.roundRect(x, y, w, h, r); return; }
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);  c.arcTo(x + w, y, x + w, y + r, r);
+  c.lineTo(x + w, y + h - r); c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);  c.arcTo(x, y + h, x, y + h - r, r);
+  c.lineTo(x, y + r);      c.arcTo(x, y, x + r, y, r);
+  c.closePath();
+}
+
+/* ============================================================
+   2. TOAST
+   ============================================================ */
+const TOAST_ICONS = {
+  info: 'fa-circle-info', success: 'fa-circle-check',
+  error: 'fa-circle-exclamation', warning: 'fa-triangle-exclamation'
+};
+function toast(message, type = 'info', duration = 3400) {
+  const box = $('#toastContainer');
+  const node = document.createElement('div');
+  node.className = `toast toast-${type}`;
+  node.innerHTML = `<i class="fas ${TOAST_ICONS[type] || TOAST_ICONS.info}"></i><span>${escapeHtml(message)}</span>`;
+  box.appendChild(node);
+  requestAnimationFrame(() => node.classList.add('show'));
+  setTimeout(() => {
+    node.classList.remove('show');
+    setTimeout(() => node.remove(), 280);
+  }, duration);
+}
+
+/* ============================================================
+   3. STATE
+   ============================================================ */
+const STORAGE_KEY = 'progeotag.settings.v35';
+const DRIVE_KEY   = 'progeotag.drive.v1';
+
+const DEFAULT_SETTINGS = {
+  format: 'degree', quality: 92, outputFormat: 'jpeg', maxWidth: 0,
+  showMap: true, showCoords: true, showAddress: true, showTime: true,
+  showDesc: false,
+  position: 'bottom', fontScale: 100, layer: 'street', labels: true,
+  title: '', address: '', description: ''
+};
+
+const DEFAULT_DRIVE = {
+  webAppUrl: '',
+  spreadsheetId: '',
+  folderId: '',
+  sheetName: 'Geotag'
+};
+
+const state = {
+  original: null,
+  working: null,
+  outputCanvas: null,
+
+  view: { baseScale: 1, zoom: 1, panX: 0, panY: 0 },
+  viewSize: { w: 0, h: 0, dpr: 1 },
+
+  cropMode: false,
+  crop: { x: 0, y: 0, w: 0, h: 0, ratio: null },
+
+  map: null, marker: null, layers: {}, mapReady: false, activeLayer: 'street',
+  renderToken: 0,
+  settings: { ...DEFAULT_SETTINGS },
+  drive: { ...DEFAULT_DRIVE },
+  savingDrive: false
+};
+
+try {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  state.settings = { ...DEFAULT_SETTINGS, ...saved };
+} catch (_) {}
+
+try {
+  const savedDrive = JSON.parse(localStorage.getItem(DRIVE_KEY) || '{}');
+  state.drive = { ...DEFAULT_DRIVE, ...savedDrive };
+} catch (_) {}
+
+const saveSettings = debounce(() => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings)); } catch (_) {}
+}, 400);
+const saveDriveConfig = debounce(() => {
+  try { localStorage.setItem(DRIVE_KEY, JSON.stringify(state.drive)); } catch (_) {}
+}, 400);
+
+/* ============================================================
+   4. DOM REFS
+   ============================================================ */
+const el = {
+  sidebar: $('#sidebar'), backdrop: $('#sidebarBackdrop'), menuToggle: $('#menuToggle'),
+  content: $('#content'), panelContainer: $('#panelContainer'),
+  panelTitle: $('#panelTitle'), panelSubtitle: $('#panelSubtitle'), chipDims: $('#chipDims'),
+
+  dropzone: $('#dropzone'), fileInput: $('#fileInput'), fileInfo: $('#fileInfo'),
+  exifStatus: $('#exifStatus'), goLocation: $('#goLocation'),
+
+  searchInput: $('#searchAddress'), searchBtn: $('#searchBtn'),
+  suggestions: $('#suggestions'), searchStatus: $('#searchStatus'),
+  lat: $('#lat'), lng: $('#long'), coordFormat: $('#coordFormat'),
+  coordPreview: $('#coordPreview'), layerSwitch: $('#layerSwitch'),
+  chkLabels: $('#chkLabels'), btnReverse: $('#btnReverse'),
+  btnGps: $('#btnGps'), btnCopyCoords: $('#btnCopyCoords'),
+
+  wmTitle: $('#customText'), wmAddress: $('#alamatLengkap'), wmTime: $('#timeInput'),
+  btnNow: $('#btnNow'), chkMap: $('#chkMap'), chkCoords: $('#chkCoords'),
+  chkAddress: $('#chkAddress'), chkDesc: $('#chkDesc'), chkTime: $('#chkTime'),
+  wmPosition: $('#wmPosition'), wmFontScale: $('#wmFontScale'),
+  fontScaleValue: $('#fontScaleValue'),
+
+  deskripsiInput: $('#deskripsiKegiatan'),
+  descCount: $('#descCount'),
+  descPreview: $('#descPreview'),
+
+  previewEmpty: $('#previewEmpty'), previewContent: $('#previewContent'),
+  previewShell: $('#previewShell'), previewInfo: $('#previewInfo'),
+  ratioGrid: $('#ratioGrid'), btnEnterCrop: $('#btnEnterCrop'),
+  btnApplyCrop: $('#btnApplyCrop'), btnCancelCrop: $('#btnCancelCrop'),
+  cropHint: $('#cropHint'), cropModeBadge: $('#cropModeBadge'),
+
+  zoomBar: $('#zoomBar'), zoomOut: $('#zoomOut'), zoomIn: $('#zoomIn'),
+  zoomSlider: $('#zoomSlider'), zoomLabel: $('#zoomLabel'), zoomFit: $('#zoomFit'),
+
+  compressQuality: $('#compressQuality'), compressValue: $('#compressValue'),
+  outputFormat: $('#outputFormat'), maxWidth: $('#maxWidth'),
+  estimatedSize: $('#estimatedSize'), downloadBtn: $('#downloadBtn'),
+  downloadBtnMain: $('#downloadBtnMain'), btnReset: $('#btnReset'),
+
+  canvas: $('#imageCanvas'), placeholder: $('#placeholderText'),
+
+  saveDriveBtn: $('#saveDriveBtn'),
+  driveStatus: $('#driveStatus'),
+  driveConfigToggle: $('#driveConfigToggle'),
+  driveConfig: $('#driveConfig'),
+  driveWebAppUrl: $('#driveWebAppUrl'),
+  driveSpreadsheetId: $('#driveSpreadsheetId'),
+  driveFolderId: $('#driveFolderId'),
+  driveSheetName: $('#driveSheetName'),
+  driveSaveConfig: $('#driveSaveConfig'),
+  driveTestBtn: $('#driveTestBtn'),
+  appsscriptToggle: $('#appsscriptToggle'),
+  appsscriptBox: $('#appsscriptBox'),
+  copyAppsScript: $('#copyAppsScript')
+};
+
+const vctx = el.canvas.getContext('2d');
+
+/* ============================================================
+   5. NAVIGASI
+   ============================================================ */
+const PANEL_META = {
+  upload:      { title: 'Unggah Foto',        subtitle: 'Pilih foto dari perangkat untuk mulai membuat watermark geotag', wide: false },
+  location:    { title: 'Lokasi & Peta',      subtitle: 'Cari tempat, geser peta, atau gunakan GPS perangkat Anda', wide: false },
+  watermark:   { title: 'Watermark',          subtitle: 'Atur teks, waktu, dan komposisi panel watermark', wide: false },
+  description: { title: 'Deskripsi Kegiatan', subtitle: 'Catat keterangan kegiatan yang akan disimpan ke Google Spreadsheet', wide: false },
+  preview:     { title: 'Preview & Crop',     subtitle: 'Zoom, geser, dan potong foto — kotak crop tetap di layar', wide: true },
+  export:      { title: 'Ekspor & Simpan',    subtitle: 'Unduh ke perangkat atau simpan langsung ke Google Drive', wide: false }
+};
+
+function switchPanel(name) {
+  $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+  $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+
+  const meta = PANEL_META[name];
+  if (meta) {
+    el.panelTitle.textContent = meta.title;
+    el.panelSubtitle.textContent = meta.subtitle;
+    el.panelContainer.classList.toggle('wide', !!meta.wide);
+  }
+
+  if (name === 'location') {
+    ensureMap();
+    setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 160);
+  }
+  if (name === 'preview') {
+    refreshPreviewPanel();
+    setTimeout(() => {
+      if (state.working) { setupViewport(); render(); }
+    }, 80);
+  }
+  if (name === 'export') {
+    updateDriveStatusIdle();
+  }
+  if (name === 'description') {
+    updateDescCounter();
+  }
+
+  if (window.innerWidth <= 1024) closeSidebar();
+  el.content.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openSidebar()  { el.sidebar.classList.add('open'); el.backdrop.classList.add('show'); }
+function closeSidebar() { el.sidebar.classList.remove('open'); el.backdrop.classList.remove('show'); }
+
+$$('.nav-item').forEach(btn => btn.addEventListener('click', () => switchPanel(btn.dataset.panel)));
+el.menuToggle.addEventListener('click', openSidebar);
+el.backdrop.addEventListener('click', closeSidebar);
+
+document.addEventListener('click', e => {
+  const goto = e.target.closest('[data-goto]');
+  if (goto) { e.preventDefault(); switchPanel(goto.dataset.goto); }
+});
+
+function markDone(panelName, done = true) {
+  const item = $(`.nav-item[data-panel="${panelName}"]`);
+  if (item) item.classList.toggle('done', done);
+}
+
+/* ============================================================
+   6. KONVERSI KOORDINAT
+   ============================================================ */
+function toDMS(lat, lng) {
+  const fmt = (val, pos, neg) => {
+    const dir = val >= 0 ? pos : neg;
+    const abs = Math.abs(val);
+    const d = Math.floor(abs);
+    const mFull = (abs - d) * 60;
+    const m = Math.floor(mFull);
+    const s = (mFull - m) * 60;
+    return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1)}"${dir}`;
+  };
+  return { lat: fmt(lat, 'N', 'S'), lng: fmt(lng, 'E', 'W') };
+}
+
+function toUTM(lat, lng) {
+  const a = 6378137.0, f = 1 / 298.257223563, k0 = 0.9996;
+  const eccSq = 2 * f - f * f;
+  let zone = Math.floor((lng + 180) / 6) + 1;
+  if (zone > 60) zone = 60;
+  const lonRad = lng * Math.PI / 180;
+  const latRad = lat * Math.PI / 180;
+  const centralLon = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+  const dLon = lonRad - centralLon;
+  const N = a / Math.sqrt(1 - eccSq * Math.sin(latRad) ** 2);
+  const T = Math.tan(latRad) ** 2;
+  const C = eccSq / (1 - eccSq) * Math.cos(latRad) ** 2;
+  const A = dLon * Math.cos(latRad);
+  const M = a * (
+    (1 - eccSq / 4 - 3 * eccSq ** 2 / 64 - 5 * eccSq ** 3 / 256) * latRad -
+    (3 * eccSq / 8 + 3 * eccSq ** 2 / 32 + 45 * eccSq ** 3 / 1024) * Math.sin(2 * latRad) +
+    (15 * eccSq ** 2 / 256 + 45 * eccSq ** 3 / 1024) * Math.sin(4 * latRad) -
+    (35 * eccSq ** 3 / 3072) * Math.sin(6 * latRad)
+  );
+  const easting = k0 * N * (A + (1 - T + C) * A ** 3 / 6 +
+    (5 - 18 * T + T ** 2 + 72 * C - 58 * eccSq) * A ** 5 / 120) + 500000;
+  let northing = k0 * (M + N * Math.tan(latRad) * (
+    A ** 2 / 2 + (5 - T + 9 * C + 4 * C ** 2) * A ** 4 / 24 +
+    (61 - 58 * T + T ** 2 + 600 * C - 330 * eccSq) * A ** 6 / 720));
+  const hemisphere = lat < 0 ? 'S' : 'N';
+  if (lat < 0) northing += 10000000;
+  return { zone, hemisphere, easting: Math.round(easting), northing: Math.round(northing) };
+}
+
+function formatCoords(lat, lng, format) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
+  switch (format) {
+    case 'dms': { const d = toDMS(lat, lng); return `${d.lat}  ${d.lng}`; }
+    case 'utm': { const u = toUTM(lat, lng); return `${u.zone}${u.hemisphere}  ${u.easting}E  ${u.northing}N`; }
+    default:    return `Lat ${lat.toFixed(6)}°  Long ${lng.toFixed(6)}°`;
+  }
+}
+
+function formatTimeValue(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const dateStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const offMin = -d.getTimezoneOffset();
+  const sign = offMin >= 0 ? '+' : '-';
+  const hh = String(Math.floor(Math.abs(offMin) / 60)).padStart(2, '0');
+  const mm = String(Math.abs(offMin) % 60).padStart(2, '0');
+  return `${dateStr} ${timeStr} GMT${sign}${hh}:${mm}`;
+}
+
+/* ============================================================
+   7. PETA ESRI
+   ============================================================ */
+const ESRI = {
+  street:  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  imagery: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo:    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+  labels:  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+};
+const ESRI_ATTR = 'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>';
+
+function tileUrl(layerKey, z, x, y) {
+  return ESRI[layerKey].replace('{z}', z).replace('{x}', x).replace('{y}', y);
+}
+
+function ensureMap() {
+  if (state.mapReady) return;
+  state.mapReady = true;
+
+  const startLat = parseFloat(el.lat.value) || -7.946271;
+  const startLng = parseFloat(el.lng.value) || 112.615781;
+
+  state.layers = {
+    street:  L.tileLayer(ESRI.street,  { maxZoom: 19, attribution: ESRI_ATTR }),
+    imagery: L.tileLayer(ESRI.imagery, { maxZoom: 19, attribution: ESRI_ATTR }),
+    topo:    L.tileLayer(ESRI.topo,    { maxZoom: 19, attribution: ESRI_ATTR }),
+    labels:  L.tileLayer(ESRI.labels,  { maxZoom: 19, opacity: 0.9 })
+  };
+
+  state.map = L.map('mainMap', {
+    center: [startLat, startLng], zoom: 13,
+    layers: [state.layers[state.settings.layer] || state.layers.street],
+    zoomControl: true, attributionControl: true
+  });
+  state.marker = L.marker([startLat, startLng], { draggable: true }).addTo(state.map);
+
+  state.marker.on('dragend', () => {
+    const p = state.marker.getLatLng();
+    setCoords(p.lat, p.lng, { reverse: true });
+  });
+  state.map.on('click', e => setCoords(e.latlng.lat, e.latlng.lng, { reverse: true }));
+
+  applyLayer(state.settings.layer || 'street');
+}
+
+function applyLayer(key) {
+  if (!state.map) return;
+  ['street', 'imagery', 'topo'].forEach(k => {
+    if (state.layers[k] && state.map.hasLayer(state.layers[k])) state.map.removeLayer(state.layers[k]);
+  });
+  state.map.addLayer(state.layers[key]);
+  state.activeLayer = key;
+
+  const wantLabels = el.chkLabels.checked && key === 'imagery';
+  if (wantLabels && !state.map.hasLayer(state.layers.labels)) state.map.addLayer(state.layers.labels);
+  if (!wantLabels && state.map.hasLayer(state.layers.labels)) state.map.removeLayer(state.layers.labels);
+
+  $$('.layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === key));
+  state.settings.layer = key;
+  saveSettings();
+}
+
+el.layerSwitch.addEventListener('click', e => {
+  const btn = e.target.closest('.layer-btn');
+  if (btn) applyLayer(btn.dataset.layer);
+});
+
+el.chkLabels.addEventListener('change', () => {
+  state.settings.labels = el.chkLabels.checked;
+  saveSettings();
+  applyLayer(state.activeLayer);
+});
+
+/* ============================================================
+   8. KOORDINAT
+   ============================================================ */
+function setCoords(lat, lng, opts = {}) {
+  el.lat.value = Number(lat).toFixed(6);
+  el.lng.value = Number(lng).toFixed(6);
+  if (state.marker) state.marker.setLatLng([lat, lng]);
+  if (opts.pan && state.map) state.map.setView([lat, lng], Math.max(state.map.getZoom(), 15));
+  updateCoordPreview();
+  if (opts.reverse) scheduleReverseGeocode();
+  scheduleRender();
+}
+
+function syncFromInputs() {
+  const lat = parseFloat(el.lat.value);
+  const lng = parseFloat(el.lng.value);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && state.marker) {
+    state.marker.setLatLng([lat, lng]);
+  }
+  updateCoordPreview();
+  scheduleRender();
+}
+
+function updateCoordPreview() {
+  const lat = parseFloat(el.lat.value);
+  const lng = parseFloat(el.lng.value);
+  el.coordPreview.textContent = formatCoords(lat, lng, state.settings.format) || '—';
+}
+
+el.lat.addEventListener('input', syncFromInputs);
+el.lng.addEventListener('input', syncFromInputs);
+
+el.coordFormat.addEventListener('change', () => {
+  state.settings.format = el.coordFormat.value;
+  saveSettings();
+  updateCoordPreview();
+  scheduleRender();
+});
+
+el.btnCopyCoords.addEventListener('click', async () => {
+  const text = formatCoords(parseFloat(el.lat.value), parseFloat(el.lng.value), state.settings.format);
+  if (!text) { toast('Koordinat belum valid.', 'warning'); return; }
+  try { await navigator.clipboard.writeText(text); toast('Koordinat disalin ke clipboard.', 'success'); }
+  catch (_) { toast('Gagal menyalin.', 'error'); }
+});
+
+el.btnGps.addEventListener('click', () => {
+  if (!navigator.geolocation) { toast('Perangkat tidak mendukung GPS.', 'error'); return; }
+  toast('Mendapatkan lokasi GPS…', 'info', 2000);
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      setCoords(pos.coords.latitude, pos.coords.longitude, { reverse: true, pan: true });
+      toast('Lokasi GPS berhasil didapat.', 'success');
+    },
+    err => toast('Gagal mendapatkan GPS: ' + err.message, 'error'),
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+});
+
+/* ============================================================
+   9. GEOCODING
+   ============================================================ */
+let searchAbort = null, reverseAbort = null;
+
+function setSearchStatus(text, loading) {
+  el.searchStatus.innerHTML = text
+    ? `<i class="fas ${loading ? 'fa-spinner fa-pulse' : 'fa-circle-info'}"></i> ${escapeHtml(text)}`
+    : '';
+  el.searchStatus.classList.toggle('show', !!text);
+}
+
+function parseAddress(addr) {
+  if (!addr) return '';
+  const parts = [
+    addr.road || addr.pedestrian || addr.suburb || addr.building || addr.amenity || addr.shop || '',
+    addr.village || addr.hamlet || addr.neighbourhood || addr.quarter || addr.subdistrict || '',
+    addr.city_district || addr.district || addr.municipality || '',
+    addr.city || addr.town || addr.county || addr.regency || '',
+    addr.state || addr.province || '', addr.country || ''
+  ].map(s => (s || '').trim()).filter(Boolean);
+  const uniq = parts.filter((p, i) => parts.indexOf(p) === i);
+  const postcode = addr.postcode ? ` ${addr.postcode}` : '';
+  return uniq.join(', ') + postcode;
+}
+
+async function fetchSuggestions(query) {
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  setSearchStatus('Mencari lokasi…', true);
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q='
+      + encodeURIComponent(query);
+    const res = await fetch(url, { signal: searchAbort.signal, headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderSuggestions(data);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      setSearchStatus('Gagal mencari lokasi. Coba lagi.', false);
+      setTimeout(() => setSearchStatus('', false), 2600);
+    }
+  } finally {
+    if (el.searchStatus.textContent.includes('Mencari')) setSearchStatus('', false);
+  }
+}
+
+function renderSuggestions(list) {
+  el.suggestions.innerHTML = '';
+  if (!list || !list.length) {
+    el.suggestions.classList.remove('show');
+    toast('Lokasi tidak ditemukan.', 'warning');
+    return;
+  }
+  list.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'suggestion-item';
+    div.innerHTML = `<i class="fas fa-location-dot"></i><span>${escapeHtml(item.display_name)}</span>`;
+    div.addEventListener('click', () => {
+      el.suggestions.classList.remove('show');
+      el.searchInput.value = item.display_name.split(',')[0];
+      el.wmAddress.value = parseAddress(item.address) || item.display_name;
+      state.settings.address = el.wmAddress.value;
+      saveSettings();
+      setCoords(parseFloat(item.lat), parseFloat(item.lon), { pan: true });
+      markDone('location');
+      toast('Lokasi diterapkan.', 'success');
+    });
+    el.suggestions.appendChild(div);
+  });
+  el.suggestions.classList.add('show');
+}
+
+el.searchInput.addEventListener('input', debounce(function () {
+  const q = this.value.trim();
+  if (q.length < 3) { el.suggestions.classList.remove('show'); return; }
+  fetchSuggestions(q);
+}, 450));
+
+el.searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const q = el.searchInput.value.trim();
+    if (q) fetchSuggestions(q);
+  }
+});
+
+el.searchBtn.addEventListener('click', () => {
+  const q = el.searchInput.value.trim();
+  if (!q) { toast('Masukkan kata kunci terlebih dahulu.', 'warning'); return; }
+  fetchSuggestions(q);
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#panel-location .card')) el.suggestions.classList.remove('show');
+});
+
+const scheduleReverseGeocode = debounce(() => reverseGeocode(), 800);
+
+async function reverseGeocode() {
+  const lat = parseFloat(el.lat.value);
+  const lng = parseFloat(el.lng.value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  if (reverseAbort) reverseAbort.abort();
+  reverseAbort = new AbortController();
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`;
+    const res = await fetch(url, { signal: reverseAbort.signal, headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.address) {
+      const addr = parseAddress(data.address);
+      el.wmAddress.value = addr;
+      state.settings.address = addr;
+      saveSettings();
+      scheduleRender();
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('Reverse geocode gagal:', err.message);
+  }
+}
+
+el.btnReverse.addEventListener('click', () => {
+  reverseGeocode().then(() => toast('Alamat diperbarui dari koordinat.', 'success'));
+});
+
+/* ============================================================
+   10. EXIF GPS PARSER
+   ============================================================ */
+function getExifGPS(buffer) {
+  const dv = new DataView(buffer);
+  if (dv.byteLength < 20 || dv.getUint16(0, false) !== 0xFFD8) return null;
+  let offset = 2;
+  while (offset + 4 < dv.byteLength) {
+    const marker = dv.getUint16(offset, false);
+    if ((marker & 0xFF00) !== 0xFF00) break;
+    const size = dv.getUint16(offset + 2, false);
+    if (size < 2) break;
+    if (marker === 0xFFE1) {
+      const start = offset + 4;
+      if (dv.getUint32(start, false) !== 0x45786966) { offset += 2 + size; continue; }
+      const tiff = start + 6;
+      const little = dv.getUint16(tiff, false) === 0x4949;
+      const u16 = o => dv.getUint16(o, little);
+      const u32 = o => dv.getUint32(o, little);
+      if (u16(tiff + 2) !== 0x002A) return null;
+      const ifd0 = tiff + u32(tiff + 4);
+      const count0 = u16(ifd0);
+      let gpsIFD = 0;
+      for (let i = 0; i < count0; i++) {
+        const entry = ifd0 + 2 + i * 12;
+        if (u16(entry) === 0x8825) { gpsIFD = tiff + u32(entry + 8); break; }
+      }
+      if (!gpsIFD) return null;
+      const gpsCount = u16(gpsIFD);
+      const tags = {};
+      for (let i = 0; i < gpsCount; i++) {
+        const entry = gpsIFD + 2 + i * 12;
+        const tag = u16(entry), type = u16(entry + 2), cnt = u32(entry + 4);
+        const unit = type === 3 ? 2 : type === 4 ? 4 : type === 5 ? 8 : type === 1 ? 1 : 2;
+        let valOffset = entry + 8;
+        if (unit * cnt > 4) valOffset = tiff + u32(entry + 8);
+        tags[tag] = { type, count: cnt, offset: valOffset };
+      }
+      const readRationals = t => {
+        if (!t || t.type !== 5) return null;
+        const out = [];
+        for (let i = 0; i < t.count; i++) {
+          const num = u32(t.offset + i * 8), den = u32(t.offset + i * 8 + 4);
+          out.push(den ? num / den : 0);
+        }
+        return out;
+      };
+      const readAscii = t => t ? String.fromCharCode(dv.getUint8(t.offset)) : null;
+      const latRef = readAscii(tags[1]), latArr = readRationals(tags[2]);
+      const lngRef = readAscii(tags[3]), lngArr = readRationals(tags[4]);
+      const altArr = readRationals(tags[6]);
+      if (!latArr || !lngArr || latArr.length < 3 || lngArr.length < 3) return null;
+      const toDeg = a => a[0] + a[1] / 60 + a[2] / 3600;
+      let latitude = toDeg(latArr), longitude = toDeg(lngArr);
+      if (latRef === 'S') latitude = -latitude;
+      if (lngRef === 'W') longitude = -longitude;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+      return { latitude, longitude, altitude: altArr ? altArr[0] : null };
+    }
+    offset += 2 + size;
+  }
+  return null;
+}
+
+/* ============================================================
+   11. UNGGAH
+   ============================================================ */
+function loadImageFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Gagal memuat gambar'));
+    img.src = url;
+  });
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Berkas harus berupa gambar.', 'error'); return; }
+  if (file.size > 25 * 1024 * 1024) { toast('Ukuran berkas melebihi 25 MB.', 'error'); return; }
+
+  let exifGps = null;
+  if (file.type === 'image/jpeg') {
+    try { exifGps = getExifGPS(await file.arrayBuffer()); } catch (_) {}
+  }
+
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await loadImageFromUrl(url);
+    URL.revokeObjectURL(url);
+
+    state.original = img;
+    state.working = img;
+    exitCropMode(true);
+
+    el.chipDims.innerHTML = `<i class="fas fa-image"></i> ${img.naturalWidth} × ${img.naturalHeight}`;
+    el.previewInfo.textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+
+    el.fileInfo.hidden = false;
+    el.fileInfo.innerHTML = `
+      <div class="info-row"><span>Nama berkas</span><strong>${escapeHtml(file.name)}</strong></div>
+      <div class="info-row"><span>Ukuran</span><strong>${formatBytes(file.size)}</strong></div>
+      <div class="info-row"><span>Dimensi</span><strong>${img.naturalWidth} × ${img.naturalHeight} px</strong></div>
+      <div class="info-row"><span>Tipe</span><strong>${escapeHtml(file.type)}</strong></div>
+    `;
+
+    const lm = file.lastModified ? new Date(file.lastModified) : new Date();
+    lm.setMinutes(lm.getMinutes() - lm.getTimezoneOffset());
+    el.wmTime.value = lm.toISOString().slice(0, 16);
+
+    if (exifGps) {
+      el.exifStatus.className = 'exif-status ok';
+      el.exifStatus.innerHTML = `<i class="fas fa-circle-check"></i> <strong>Data GPS ditemukan!</strong><br>
+        ${exifGps.latitude.toFixed(6)}, ${exifGps.longitude.toFixed(6)}${exifGps.altitude !== null ? ' · ' + Math.round(exifGps.altitude) + ' m' : ''}`;
+      setCoords(exifGps.latitude, exifGps.longitude, { reverse: true, pan: true });
+      markDone('location');
+      toast('Koordinat GPS dari EXIF berhasil dibaca.', 'success');
+    } else {
+      el.exifStatus.className = 'exif-status warn';
+      el.exifStatus.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Tidak ada data GPS pada foto ini.
+        Gunakan panel <strong>Lokasi &amp; Peta</strong> untuk mengaturnya manual.`;
+    }
+
+    el.goLocation.disabled = false;
+    el.saveDriveBtn.disabled = false;
+    markDone('upload', true);
+
+    refreshPreviewPanel();
+    state.viewSize = { w: 0, h: 0, dpr: 1 };
+    setTimeout(() => switchPanel('preview'), 300);
+
+  } catch (err) {
+    console.error(err);
+    toast('Gagal memuat gambar.', 'error');
+  }
+}
+
+el.dropzone.addEventListener('click', () => el.fileInput.click());
+el.dropzone.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.fileInput.click(); }
+});
+el.fileInput.addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) handleFile(f);
+  e.target.value = '';
+});
+
+['dragenter', 'dragover'].forEach(evt => {
+  el.dropzone.addEventListener(evt, e => {
+    e.preventDefault(); e.stopPropagation();
+    el.dropzone.classList.add('dragover');
+  });
+});
+['dragleave', 'drop'].forEach(evt => {
+  el.dropzone.addEventListener(evt, e => {
+    e.preventDefault(); e.stopPropagation();
+    el.dropzone.classList.remove('dragover');
+  });
+});
+el.dropzone.addEventListener('drop', e => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+el.goLocation.addEventListener('click', () => switchPanel('location'));
+
+document.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const f = item.getAsFile();
+      if (f) { handleFile(f); toast('Gambar ditempel dari clipboard.', 'info'); }
+      break;
+    }
+  }
+});
+
+/* ============================================================
+   12. OUTPUT CANVAS
+   ============================================================ */
+function getOutputCanvas() {
+  if (!state.outputCanvas) state.outputCanvas = document.createElement('canvas');
+  return state.outputCanvas;
+}
+
+/* ============================================================
+   13. RENDER WATERMARK
+   ============================================================ */
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+
+const tileCache = new Map();
+const TILE_CACHE_MAX = 150;
+
+function loadTile(url) {
+  if (tileCache.has(url)) return Promise.resolve(tileCache.get(url));
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      tileCache.set(url, img);
+      if (tileCache.size > TILE_CACHE_MAX) tileCache.delete(tileCache.keys().next().value);
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function projectMercator(lat, lng, zoom) {
+  const n = Math.pow(2, zoom);
+  const x = (lng + 180) / 360 * n * 256;
+  const latRad = lat * Math.PI / 180;
+  const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n * 256;
+  return { x, y };
+}
+
+async function loadMiniMap(lat, lng) {
+  const zoom = 16;
+  const p = projectMercator(lat, lng, zoom);
+  const tx = Math.floor(p.x / 256);
+  const ty = Math.floor(p.y / 256);
+
+  const jobs = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      jobs.push(loadTile(tileUrl('imagery', zoom, tx + dx, ty + dy)));
+    }
+  }
+  const imgs = await Promise.all(jobs);
+
+  const SRC = 768;
+  const off = document.createElement('canvas');
+  off.width = SRC; off.height = SRC;
+  const octx = off.getContext('2d');
+  octx.fillStyle = '#101a2b';
+  octx.fillRect(0, 0, SRC, SRC);
+
+  imgs.forEach((im, i) => {
+    if (!im) return;
+    const dx = (i % 3) * 256;
+    const dy = Math.floor(i / 3) * 256;
+    try { octx.drawImage(im, dx, dy, 256, 256); } catch (_) {}
+  });
+
+  const cx = (p.x % 256) + 256;
+  const cy = (p.y % 256) + 256;
+  const crop = 220;
+  return { canvas: off, sx: cx - crop / 2, sy: cy - crop / 2, size: crop };
+}
+
+function wrapText(c, text, maxWidth, fontSize, maxLines = 3) {
+  c.font = `400 ${fontSize}px ${FONT_STACK}`;
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? current + ' ' + word : word;
+    if (c.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+      if (lines.length === maxLines) break;
+    } else {
+      current = test;
+    }
+  }
+  if (lines.length < maxLines && current) lines.push(current);
+  if (lines.length === maxLines) {
+    let last = lines[maxLines - 1];
+    while (c.measureText(last + '…').width > maxWidth && last.length > 4) last = last.slice(0, -1);
+    lines[maxLines - 1] = last + '…';
+  }
+  return lines.length ? lines : [''];
+}
+
+function buildWatermarkPlan(c, W, H) {
+  const s = state.settings;
+  const lat = parseFloat(el.lat.value);
+  const lng = parseFloat(el.lng.value);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+  const title = (el.wmTitle.value || '').trim();
+  const address = (el.wmAddress.value || '').trim();
+  const deskripsi = (el.deskripsiInput.value || '').trim();
+  const coords = hasCoords ? formatCoords(lat, lng, s.format) : '';
+  const timeStr = formatTimeValue(el.wmTime.value);
+
+  const padX = clamp(W * 0.028, 10, 72);
+  const padY = clamp(W * 0.024, 8, 64);
+  const gap  = clamp(W * 0.026, 8, 66);
+
+  const wantMap = s.showMap && hasCoords;
+  const mapSize = wantMap ? clamp(W * 0.13, 68, 300) : 0;
+  const baseFont = clamp(W * 0.026, 11, 64) * (s.fontScale / 100);
+
+  const textX = padX + (mapSize ? mapSize + gap : 0);
+  const maxTextW = Math.max(60, W - textX - padX);
+
+  const rows = [];
+  const push = (text, size, weight, color, marginTop = 0) => {
+    if (!text) return;
+    rows.push({ text, size, weight, color, marginTop, lineHeight: size * 1.36 });
+  };
+
+  if (title) push(title, baseFont * 1.12, 700, '#ffffff', 0);
+
+  if (s.showAddress && address) {
+    const lines = wrapText(c, address, maxTextW, baseFont * 0.78);
+    lines.forEach((line, i) => push(line, baseFont * 0.78, 400, 'rgba(255,255,255,0.87)', i === 0 ? baseFont * 0.20 : 0));
+  }
+
+  if (s.showDesc && deskripsi) {
+    const lines = wrapText(c, deskripsi, maxTextW, baseFont * 0.72, 2);
+    lines.forEach((line, i) => push(line, baseFont * 0.72, 500, 'rgba(147,197,253,0.95)', i === 0 ? baseFont * 0.24 : 0));
+  }
+
+  if (s.showCoords && coords) push(coords, baseFont * 0.86, 700, '#fbbf24', baseFont * 0.26);
+  if (s.showTime && timeStr) push(timeStr, baseFont * 0.72, 400, 'rgba(255,255,255,0.72)', baseFont * 0.20);
+
+  let textH = 0;
+  rows.forEach(r => { textH += r.marginTop + r.lineHeight; });
+
+  const contentH = Math.max(mapSize, textH);
+  const barH = contentH + padY * 2;
+  const barY = s.position === 'top' ? 0 : H - barH;
+
+  return { W, H, padX, padY, gap, mapSize, textX, maxTextW, rows, contentH, barH, barY,
+           lat, lng, hasCoords, wantMap };
+}
+
+function paintMiniMap(c, tiles, box) {
+  c.save();
+  roundRectPath(c, box.x, box.y, box.w, box.h, box.r);
+  c.clip();
+  if (tiles && tiles.canvas) {
+    c.drawImage(tiles.canvas, tiles.sx, tiles.sy, tiles.size, tiles.size, box.x, box.y, box.w, box.h);
+  } else {
+    const g = c.createLinearGradient(box.x, box.y, box.x, box.y + box.h);
+    g.addColorStop(0, '#1e293b'); g.addColorStop(1, '#0f172a');
+    c.fillStyle = g;
+    c.fillRect(box.x, box.y, box.w, box.h);
+  }
+  c.restore();
+
+  c.save();
+  roundRectPath(c, box.x, box.y, box.w, box.h, box.r);
+  c.strokeStyle = 'rgba(255,255,255,0.38)';
+  c.lineWidth = Math.max(1.5, box.w * 0.012);
+  c.stroke();
+  c.restore();
+
+  const cx = box.x + box.w / 2, cy = box.y + box.h / 2, r = box.w * 0.10;
+
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.55)';
+  c.shadowBlur = r * 1.4;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2);
+  c.fillStyle = '#ef4444'; c.fill();
+  c.restore();
+
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2);
+  c.strokeStyle = '#ffffff';
+  c.lineWidth = Math.max(1.5, box.w * 0.016);
+  c.stroke();
+
+  c.beginPath(); c.arc(cx, cy, r * 0.36, 0, Math.PI * 2);
+  c.fillStyle = '#ffffff'; c.fill();
+}
+
+function paintWatermark(c, plan, tiles) {
+  const { W, H, barY, barH, padX, padY, mapSize, textX, rows, contentH } = plan;
+  const s = state.settings;
+
+  const fadeH = Math.min(barH * 0.95, H * 0.24);
+  if (s.position === 'bottom') {
+    const g = c.createLinearGradient(0, barY - fadeH, 0, barY);
+    g.addColorStop(0, 'rgba(2,6,23,0)');
+    g.addColorStop(1, 'rgba(2,6,23,0.78)');
+    c.fillStyle = g;
+    c.fillRect(0, barY - fadeH, W, fadeH);
+  } else {
+    const g = c.createLinearGradient(0, barY + barH + fadeH, 0, barY + barH);
+    g.addColorStop(0, 'rgba(2,6,23,0)');
+    g.addColorStop(1, 'rgba(2,6,23,0.78)');
+    c.fillStyle = g;
+    c.fillRect(0, barY + barH, W, fadeH);
+  }
+
+  const bg = c.createLinearGradient(0, barY, 0, barY + barH);
+  bg.addColorStop(0, 'rgba(2,6,23,0.78)');
+  bg.addColorStop(1, 'rgba(2,6,23,0.93)');
+  c.fillStyle = bg;
+  c.fillRect(0, barY, W, barH);
+
+  const accent = Math.max(2, W * 0.0035);
+  c.fillStyle = '#3b82f6';
+  c.fillRect(0, s.position === 'bottom' ? barY : barY + barH - accent, W, accent);
+
+  if (plan.wantMap && mapSize) {
+    const box = {
+      x: padX,
+      y: barY + padY + (contentH - mapSize) / 2,
+      w: mapSize, h: mapSize,
+      r: mapSize * 0.13
+    };
+    paintMiniMap(c, tiles, box);
+  }
+
+  c.textAlign = 'left';
+  c.textBaseline = 'top';
+
+  let textH = 0;
+  rows.forEach(r => { textH += r.marginTop + r.lineHeight; });
+  let y = barY + padY + (contentH - textH) / 2;
+
+  rows.forEach(r => {
+    y += r.marginTop;
+    c.font = `${r.weight} ${r.size}px ${FONT_STACK}`;
+    c.fillStyle = r.color;
+    c.shadowColor = 'rgba(0,0,0,0.6)';
+    c.shadowBlur = r.size * 0.3;
+    c.shadowOffsetY = r.size * 0.04;
+    c.fillText(r.text, textX, y + (r.lineHeight - r.size) * 0.34);
+    c.shadowBlur = 0;
+    c.shadowOffsetY = 0;
+    y += r.lineHeight;
+  });
+}
+
+async function render() {
+  const img = state.working;
+  if (!img) return;
+
+  const token = ++state.renderToken;
+  const W = img.naturalWidth;
+  const H = img.naturalHeight;
+
+  const out = getOutputCanvas();
+  if (out.width !== W) out.width = W;
+  if (out.height !== H) out.height = H;
+  const octx = out.getContext('2d');
+
+  octx.clearRect(0, 0, W, H);
+  octx.drawImage(img, 0, 0);
+
+  const plan = buildWatermarkPlan(octx, W, H);
+
+  let tiles = null;
+  if (plan.wantMap) {
+    try { tiles = await loadMiniMap(plan.lat, plan.lng); } catch (_) { tiles = null; }
+    if (token !== state.renderToken) return;
+    octx.clearRect(0, 0, W, H);
+    octx.drawImage(img, 0, 0);
+  }
+
+  paintWatermark(octx, plan, tiles);
+
+  drawViewport();
+}
+
+/* ============================================================
+   14. VIEWPORT
+   ============================================================ */
+function setupViewport() {
+  if (!state.working) return;
+  const shell = el.previewShell;
+  const shellW = shell.clientWidth - 32;
+  const shellH = Math.max(260, Math.min(window.innerHeight * 0.62, 620));
+
+  const maxW = Math.max(240, shellW);
+  const maxH = shellH;
+
+  const img = state.working;
+  const aspect = img.naturalWidth / img.naturalHeight;
+
+  let w = maxW;
+  let h = w / aspect;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  el.canvas.width = Math.round(w * dpr);
+  el.canvas.height = Math.round(h * dpr);
+  el.canvas.style.width = Math.round(w) + 'px';
+  el.canvas.style.height = Math.round(h) + 'px';
+
+  state.viewSize = { w, h, dpr };
+  state.view.baseScale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+  state.view.zoom = 1;
+  state.view.panX = (w - img.naturalWidth * state.view.baseScale) / 2;
+  state.view.panY = (h - img.naturalHeight * state.view.baseScale) / 2;
+
+  if (state.cropMode && state.crop.w > 0) {
+    clampCropToViewport();
+    enforceCover();
+  }
+  updateZoomUI();
+}
+
+function drawViewport() {
+  const canvas = el.canvas;
+  const { w: vw, h: vh, dpr } = state.viewSize;
+  if (!vw || !vh) return;
+
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vctx.clearRect(0, 0, vw, vh);
+
+  if (!state.working) return;
+
+  const out = getOutputCanvas();
+  if (!out.width) return;
+
+  const ds = state.view.baseScale * state.view.zoom;
+  const dw = out.width * ds;
+  const dh = out.height * ds;
+
+  vctx.imageSmoothingEnabled = state.view.zoom <= 2.2;
+  vctx.imageSmoothingQuality = 'high';
+
+  vctx.save();
+  vctx.shadowColor = 'rgba(0,0,0,0.5)';
+  vctx.shadowBlur = 18;
+  vctx.shadowOffsetY = 6;
+  vctx.fillStyle = '#ffffff';
+  vctx.fillRect(state.view.panX, state.view.panY, dw, dh);
+  vctx.restore();
+
+  vctx.drawImage(out, state.view.panX, state.view.panY, dw, dh);
+
+  if (state.cropMode && state.crop.w > 1 && state.crop.h > 1) {
+    drawCropOverlay();
+  }
+}
+
+function updateZoomUI() {
+  const pct = Math.round(state.view.zoom * 100);
+  el.zoomLabel.textContent = pct + '%';
+  el.zoomSlider.value = clamp(pct, 25, 500);
+}
+
+function zoomAt(cx, cy, factor) {
+  if (!state.working) return;
+  const oldZoom = state.view.zoom;
+  const newZoom = clamp(oldZoom * factor, 0.25, 5);
+  if (Math.abs(newZoom - oldZoom) < 0.001) return;
+
+  const oldDs = state.view.baseScale * oldZoom;
+  const ix = (cx - state.view.panX) / oldDs;
+  const iy = (cy - state.view.panY) / oldDs;
+
+  state.view.zoom = newZoom;
+  const newDs = state.view.baseScale * newZoom;
+  state.view.panX = cx - ix * newDs;
+  state.view.panY = cy - iy * newDs;
+
+  if (state.cropMode) enforceCover();
+
+  updateZoomUI();
+  drawViewport();
+}
+
+function setZoom(newZoom) {
+  if (!state.working) return;
+  const vw = state.viewSize.w, vh = state.viewSize.h;
+  const cx = vw / 2, cy = vh / 2;
+  const oldZoom = state.view.zoom;
+  const clampedNew = clamp(newZoom, 0.25, 5);
+  if (Math.abs(clampedNew - oldZoom) < 0.001) return;
+
+  const oldDs = state.view.baseScale * oldZoom;
+  const ix = (cx - state.view.panX) / oldDs;
+  const iy = (cy - state.view.panY) / oldDs;
+
+  state.view.zoom = clampedNew;
+  const newDs = state.view.baseScale * clampedNew;
+  state.view.panX = cx - ix * newDs;
+  state.view.panY = cy - iy * newDs;
+
+  if (state.cropMode) enforceCover();
+
+  updateZoomUI();
+  drawViewport();
+}
+
+function fitView() {
+  if (!state.working) return;
+  const img = state.working;
+  const w = state.viewSize.w, h = state.viewSize.h;
+  state.view.zoom = 1;
+  state.view.panX = (w - img.naturalWidth * state.view.baseScale) / 2;
+  state.view.panY = (h - img.naturalHeight * state.view.baseScale) / 2;
+  if (state.cropMode) enforceCover();
+  updateZoomUI();
+  drawViewport();
+}
+
+el.zoomIn.addEventListener('click', () => setZoom(state.view.zoom * 1.25));
+el.zoomOut.addEventListener('click', () => setZoom(state.view.zoom / 1.25));
+el.zoomFit.addEventListener('click', fitView);
+el.zoomSlider.addEventListener('input', () => setZoom(parseInt(el.zoomSlider.value, 10) / 100));
+
+el.canvas.addEventListener('wheel', e => {
+  if (!state.working) return;
+  e.preventDefault();
+  const rect = el.canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  zoomAt(cx, cy, factor);
+}, { passive: false });
+
+/* ============================================================
+   15. CROP
+   ============================================================ */
+const HANDLE_HIT_RADIUS = 14;
+
+function getHandlePositions() {
+  const c = state.crop;
+  return {
+    nw: { x: c.x, y: c.y },
+    ne: { x: c.x + c.w, y: c.y },
+    sw: { x: c.x, y: c.y + c.h },
+    se: { x: c.x + c.w, y: c.y + c.h }
+  };
+}
+
+function hitTestHandle(cx, cy) {
+  if (state.crop.w <= 0 || state.crop.h <= 0) return null;
+  const h = getHandlePositions();
+  for (const [name, p] of Object.entries(h)) {
+    if (Math.hypot(cx - p.x, cy - p.y) < HANDLE_HIT_RADIUS) return name;
+  }
+  return null;
+}
+
+function pointInCrop(cx, cy) {
+  const c = state.crop;
+  if (c.w <= 0 || c.h <= 0) return false;
+  return cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h;
+}
+
+function createCenteredCrop(ratio) {
+  const vw = state.viewSize.w;
+  const vh = state.viewSize.h;
+  if (!vw || !vh) return;
+
+  const maxW = vw * 0.82;
+  const maxH = vh * 0.82;
+
+  let rw, rh;
+  if (ratio) {
+    if (maxW / maxH > ratio) { rh = maxH; rw = rh * ratio; }
+    else { rw = maxW; rh = rw / ratio; }
+  } else {
+    rw = maxW;
+    rh = maxH;
+  }
+
+  state.crop.x = (vw - rw) / 2;
+  state.crop.y = (vh - rh) / 2;
+  state.crop.w = rw;
+  state.crop.h = rh;
+  el.btnApplyCrop.hidden = false;
+}
+
+function clampCropToViewport() {
+  const c = state.crop;
+  const vw = state.viewSize.w, vh = state.viewSize.h;
+  c.w = Math.min(c.w, vw);
+  c.h = Math.min(c.h, vh);
+  c.x = clamp(c.x, 0, vw - c.w);
+  c.y = clamp(c.y, 0, vh - c.h);
+}
+
+function resizeCrop(handle, p) {
+  const c = state.crop;
+  const vw = state.viewSize.w, vh = state.viewSize.h;
+
+  let fixedX, fixedY;
+  if (handle === 'nw') { fixedX = c.x + c.w; fixedY = c.y + c.h; }
+  else if (handle === 'ne') { fixedX = c.x; fixedY = c.y + c.h; }
+  else if (handle === 'sw') { fixedX = c.x + c.w; fixedY = c.y; }
+  else { fixedX = c.x; fixedY = c.y; }
+
+  let mx = clamp(p.x, 0, vw);
+  let my = clamp(p.y, 0, vh);
+
+  let w = Math.abs(mx - fixedX);
+  let h = Math.abs(my - fixedY);
+
+  if (c.ratio) {
+    if (w / (h || 1) > c.ratio) h = w / c.ratio;
+    else w = h * c.ratio;
+  }
+
+  const signX = mx >= fixedX ? 1 : -1;
+  const signY = my >= fixedY ? 1 : -1;
+
+  if (fixedX + signX * w > vw) { w = (vw - fixedX) * signX; if (c.ratio) h = w / c.ratio; }
+  if (fixedX + signX * w < 0)  { w = -fixedX * signX;      if (c.ratio) h = w / c.ratio; }
+  if (fixedY + signY * h > vh) { h = (vh - fixedY) * signY; if (c.ratio) w = h * c.ratio; }
+  if (fixedY + signY * h < 0)  { h = -fixedY * signY;       if (c.ratio) w = h * c.ratio; }
+
+  const newX = fixedX + signX * w;
+  const newY = fixedY + signY * h;
+
+  c.x = Math.min(fixedX, newX);
+  c.y = Math.min(fixedY, newY);
+  c.w = w;
+  c.h = h;
+
+  enforceCover();
+}
+
+function enforceCover() {
+  const img = state.working;
+  if (!img) return;
+  const c = state.crop;
+  if (c.w <= 0 || c.h <= 0) return;
+
+  const imgW = img.naturalWidth;
+  const imgH = img.naturalHeight;
+  const bs = state.view.baseScale;
+
+  const minDs = Math.max(c.w / imgW, c.h / imgH);
+  const minZoom = minDs / bs;
+  if (state.view.zoom < minZoom) {
+    state.view.zoom = minZoom;
+    updateZoomUI();
+  }
+
+  const ds = bs * state.view.zoom;
+  const dw = imgW * ds;
+  const dh = imgH * ds;
+
+  const minPanX = c.x + c.w - dw;
+  const maxPanX = c.x;
+  state.view.panX = clamp(state.view.panX, minPanX, maxPanX);
+
+  const minPanY = c.y + c.h - dh;
+  const maxPanY = c.y;
+  state.view.panY = clamp(state.view.panY, minPanY, maxPanY);
+}
+
+function drawCropOverlay() {
+  const vw = state.viewSize.w, vh = state.viewSize.h;
+  const c = state.crop;
+  if (c.w <= 0 || c.h <= 0) return;
+
+  vctx.save();
+  vctx.fillStyle = 'rgba(2,6,23,0.68)';
+  vctx.beginPath();
+  vctx.rect(0, 0, vw, vh);
+  vctx.rect(c.x, c.y, c.w, c.h);
+  vctx.fill('evenodd');
+  vctx.restore();
+
+  vctx.save();
+  vctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  vctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    const gx = c.x + (c.w / 3) * i;
+    const gy = c.y + (c.h / 3) * i;
+    vctx.beginPath(); vctx.moveTo(gx, c.y); vctx.lineTo(gx, c.y + c.h); vctx.stroke();
+    vctx.beginPath(); vctx.moveTo(c.x, gy); vctx.lineTo(c.x + c.w, gy); vctx.stroke();
+  }
+  vctx.restore();
+
+  vctx.save();
+  vctx.strokeStyle = '#ffffff';
+  vctx.lineWidth = 2;
+  vctx.shadowColor = 'rgba(0,0,0,0.5)';
+  vctx.shadowBlur = 6;
+  vctx.strokeRect(c.x, c.y, c.w, c.h);
+  vctx.restore();
+
+  const corners = [
+    { x: c.x, y: c.y },
+    { x: c.x + c.w, y: c.y },
+    { x: c.x, y: c.y + c.h },
+    { x: c.x + c.w, y: c.y + c.h }
+  ];
+  vctx.save();
+  vctx.strokeStyle = '#2563eb';
+  vctx.lineWidth = 2;
+  corners.forEach(p => {
+    vctx.beginPath();
+    vctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    vctx.fillStyle = '#ffffff';
+    vctx.fill();
+    vctx.stroke();
+  });
+  vctx.restore();
+
+  vctx.save();
+  vctx.font = `600 12px ${FONT_STACK}`;
+  const ds = state.view.baseScale * state.view.zoom;
+  const imgW = Math.round(c.w / ds);
+  const imgH = Math.round(c.h / ds);
+  const label = `${imgW} × ${imgH} px`;
+  const tw = vctx.measureText(label).width;
+  const padL = tw + 20;
+  const lh = 26;
+  const lx = c.x;
+  const ly = Math.max(8, c.y - lh - 8);
+  vctx.fillStyle = 'rgba(15,23,42,0.9)';
+  roundRectPath(vctx, lx, ly, padL, lh, lh / 2);
+  vctx.fill();
+  vctx.fillStyle = '#ffffff';
+  vctx.textBaseline = 'middle';
+  vctx.textAlign = 'left';
+  vctx.fillText(label, lx + 10, ly + lh / 2 + 1);
+  vctx.restore();
+}
+
+/* ============================================================
+   16. POINTER
+   ============================================================ */
+let dragState = null;
+
+function canvasPoint(e) {
+  const rect = el.canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+el.canvas.addEventListener('pointerdown', e => {
+  if (!state.working) return;
+  e.preventDefault();
+  el.canvas.setPointerCapture(e.pointerId);
+
+  const p = canvasPoint(e);
+
+  if (state.cropMode && state.crop.w > 0) {
+    const handle = hitTestHandle(p.x, p.y);
+    if (handle) {
+      dragState = { type: 'crop-resize', handle };
+      return;
+    }
+  }
+
+  dragState = {
+    type: 'pan',
+    startX: p.x, startY: p.y,
+    startPanX: state.view.panX,
+    startPanY: state.view.panY
+  };
+  el.canvas.classList.add('panning');
+});
+
+el.canvas.addEventListener('pointermove', e => {
+  const p = canvasPoint(e);
+
+  if (!dragState && state.working) {
+    if (state.cropMode && state.crop.w > 0) {
+      const handle = hitTestHandle(p.x, p.y);
+      if (handle) {
+        el.canvas.style.cursor = (handle === 'nw' || handle === 'se') ? 'nwse-resize' : 'nesw-resize';
+      } else if (pointInCrop(p.x, p.y)) {
+        el.canvas.style.cursor = 'grab';
+      } else {
+        el.canvas.style.cursor = 'crosshair';
+      }
+    } else {
+      el.canvas.style.cursor = 'grab';
+    }
+    return;
+  }
+
+  if (!dragState) return;
+  e.preventDefault();
+
+  if (dragState.type === 'pan') {
+    state.view.panX = dragState.startPanX + (p.x - dragState.startX);
+    state.view.panY = dragState.startPanY + (p.y - dragState.startY);
+    if (state.cropMode) enforceCover();
+    drawViewport();
+    return;
+  }
+
+  if (dragState.type === 'crop-resize') {
+    resizeCrop(dragState.handle, p);
+    el.btnApplyCrop.hidden = !(state.crop.w > 20 && state.crop.h > 20);
+    drawViewport();
+  }
+});
+
+function endDrag(e) {
+  if (!dragState) return;
+  if (e) e.preventDefault();
+  dragState = null;
+  el.canvas.classList.remove('panning');
+  el.btnApplyCrop.hidden = !(state.crop.w > 20 && state.crop.h > 20);
+  drawViewport();
+}
+
+el.canvas.addEventListener('pointerup', endDrag);
+el.canvas.addEventListener('pointercancel', endDrag);
+el.canvas.addEventListener('pointerleave', () => { if (dragState && dragState.type === 'pan') endDrag(); });
+
+/* ============================================================
+   17. KONTROL CROP
+   ============================================================ */
+function enterCropMode() {
+  if (state.cropMode) return;
+  state.cropMode = true;
+  el.canvas.classList.add('crop-mode');
+  el.btnEnterCrop.innerHTML = '<i class="fas fa-xmark"></i> Batalkan Mode';
+  el.btnCancelCrop.hidden = false;
+  el.cropHint.textContent = 'Seret gambar untuk menggeser, zoom dengan slider. Seret sudut kotak untuk mengubah ukuran.';
+  el.cropModeBadge.classList.add('show');
+
+  if (state.crop.w < 5) createCenteredCrop(state.crop.ratio);
+  else clampCropToViewport();
+  enforceCover();
+  drawViewport();
+}
+
+function exitCropMode(silent) {
+  state.cropMode = false;
+  dragState = null;
+  state.crop.x = 0; state.crop.y = 0; state.crop.w = 0; state.crop.h = 0;
+  el.canvas.classList.remove('crop-mode', 'panning');
+  el.canvas.style.cursor = '';
+  el.btnEnterCrop.innerHTML = '<i class="fas fa-vector-square"></i> Mulai Pilih Area';
+  el.btnApplyCrop.hidden = true;
+  el.btnCancelCrop.hidden = true;
+  el.cropHint.textContent = 'Pilih rasio untuk membuat kotak crop, atau seret langsung pada gambar.';
+  el.cropModeBadge.classList.remove('show');
+  if (!silent) fitView();
+}
+
+el.btnEnterCrop.addEventListener('click', () => {
+  if (!state.working) { toast('Unggah foto terlebih dahulu.', 'warning'); return; }
+  if (state.cropMode) { exitCropMode(); return; }
+  enterCropMode();
+});
+
+el.btnCancelCrop.addEventListener('click', () => {
+  exitCropMode();
+  toast('Pemilihan area dibatalkan.', 'info', 2000);
+});
+
+el.ratioGrid.addEventListener('click', e => {
+  const btn = e.target.closest('.ratio-btn');
+  if (!btn) return;
+  $$('.ratio-btn').forEach(b => b.classList.toggle('active', b === btn));
+
+  const val = btn.dataset.ratio;
+  state.crop.ratio = val === 'free' ? null : parseFloat(val);
+
+  if (!state.working) return;
+  if (!state.cropMode) enterCropMode();
+
+  if (state.crop.ratio) {
+    createCenteredCrop(state.crop.ratio);
+    enforceCover();
+    drawViewport();
+    toast(`Rasio ${btn.textContent.trim()} — kotak crop di tengah layar.`, 'info', 3200);
+  } else {
+    createCenteredCrop(null);
+    enforceCover();
+    drawViewport();
+    toast('Mode bebas — atur ukuran kotak dengan sudut.', 'info', 2600);
+  }
+});
+
+el.btnApplyCrop.addEventListener('click', () => {
+  if (!state.working || !state.cropMode) return;
+  const c = state.crop;
+  if (c.w < 20 || c.h < 20) { toast('Area potong terlalu kecil.', 'warning'); return; }
+
+  const ds = state.view.baseScale * state.view.zoom;
+  const W = state.working.naturalWidth;
+  const H = state.working.naturalHeight;
+
+  let ix = (c.x - state.view.panX) / ds;
+  let iy = (c.y - state.view.panY) / ds;
+  let iw = c.w / ds;
+  let ih = c.h / ds;
+
+  ix = clamp(Math.floor(ix), 0, W - 1);
+  iy = clamp(Math.floor(iy), 0, H - 1);
+  iw = clamp(Math.round(iw), 1, W - ix);
+  ih = clamp(Math.round(ih), 1, H - iy);
+
+  if (iw < 16 || ih < 16) { toast('Hasil crop terlalu kecil.', 'warning'); return; }
+
+  const tmp = document.createElement('canvas');
+  tmp.width = iw;
+  tmp.height = ih;
+  const tctx = tmp.getContext('2d');
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = 'high';
+  tctx.drawImage(state.working, ix, iy, iw, ih, 0, 0, iw, ih);
+
+  const cropped = new Image();
+  cropped.onload = () => {
+    state.working = cropped;
+    exitCropMode(true);
+    el.chipDims.innerHTML = `<i class="fas fa-image"></i> ${cropped.naturalWidth} × ${cropped.naturalHeight}`;
+    el.previewInfo.textContent = `${cropped.naturalWidth} × ${cropped.naturalHeight}`;
+    el.cropHint.textContent = '✅ Crop berhasil diterapkan.';
+    setupViewport();
+    render();
+    updateEstimatedSize();
+    toast(`Crop berhasil — ${iw} × ${ih} px.`, 'success');
+  };
+  cropped.onerror = () => toast('Gagal menerapkan crop.', 'error');
+  cropped.src = tmp.toDataURL('image/png');
+});
+
+el.btnReset.addEventListener('click', () => {
+  if (!state.original) { toast('Belum ada gambar untuk direset.', 'warning'); return; }
+  state.working = state.original;
+  exitCropMode(true);
+  el.chipDims.innerHTML = `<i class="fas fa-image"></i> ${state.original.naturalWidth} × ${state.original.naturalHeight}`;
+  el.previewInfo.textContent = `${state.original.naturalWidth} × ${state.original.naturalHeight}`;
+  setupViewport();
+  render();
+  updateEstimatedSize();
+  toast('Gambar dikembalikan ke kondisi asli.', 'success');
+});
+
+/* ============================================================
+   18. DESKRIPSI KEGIATAN
+   ============================================================ */
+function updateDescCounter() {
+  const text = el.deskripsiInput.value || '';
+  el.descCount.textContent = String(text.length);
+  el.descPreview.textContent = text;
+
+  /* Tandai selesai kalau terisi */
+  if (text.trim().length > 0) {
+    markDone('description', true);
+  }
+}
+
+el.deskripsiInput.addEventListener('input', debounce(() => {
+  state.settings.description = el.deskripsiInput.value;
+  saveSettings();
+  updateDescCounter();
+  scheduleRender();
+}, 250));
+
+/* ============================================================
+   19. PREVIEW PANEL
+   ============================================================ */
+function refreshPreviewPanel() {
+  const has = !!state.working;
+  el.previewEmpty.style.display = has ? 'none' : 'block';
+  el.previewContent.style.display = has ? 'flex' : 'none';
+  el.previewShell.classList.toggle('has-image', has);
+  el.placeholder.style.display = has ? 'none' : 'block';
+  el.zoomBar.style.display = has ? 'flex' : 'none';
+  el.downloadBtn.disabled = !has;
+  el.downloadBtnMain.disabled = !has;
+  el.saveDriveBtn.disabled = !has;
+}
+
+/* ============================================================
+   20. PENGATURAN WATERMARK
+   ============================================================ */
+function bindSetting(elm, key, transform = v => v, after) {
+  elm.addEventListener('input', () => {
+    state.settings[key] = transform(elm.type === 'checkbox' ? elm.checked : elm.value);
+    saveSettings();
+    if (after) after();
+    scheduleRender();
+  });
+}
+
+bindSetting(el.chkMap, 'showMap', v => !!v);
+bindSetting(el.chkCoords, 'showCoords', v => !!v);
+bindSetting(el.chkAddress, 'showAddress', v => !!v);
+bindSetting(el.chkDesc, 'showDesc', v => !!v);
+bindSetting(el.chkTime, 'showTime', v => !!v);
+bindSetting(el.wmPosition, 'position', v => v);
+bindSetting(el.compressQuality, 'quality', v => parseInt(v, 10), () => {
+  el.compressValue.textContent = el.compressQuality.value + '%';
+  updateEstimatedSize();
+});
+bindSetting(el.outputFormat, 'outputFormat', v => v, () => updateEstimatedSize());
+bindSetting(el.maxWidth, 'maxWidth', v => parseInt(v, 10), () => updateEstimatedSize());
+
+el.wmFontScale.addEventListener('input', () => {
+  state.settings.fontScale = parseInt(el.wmFontScale.value, 10);
+  el.fontScaleValue.textContent = state.settings.fontScale + '%';
+  saveSettings();
+  scheduleRender();
+});
+
+el.wmTime.addEventListener('change', scheduleRender);
+
+el.btnNow.addEventListener('click', () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  el.wmTime.value = d.toISOString().slice(0, 16);
+  scheduleRender();
+});
+
+/* ============================================================
+   21. EKSPOR
+   ============================================================ */
+function getExportSource() {
+  const src = getOutputCanvas();
+  const maxW = parseInt(el.maxWidth.value, 10) || 0;
+  if (maxW > 0 && src.width > maxW) {
+    const scale = maxW / src.width;
+    const out = document.createElement('canvas');
+    out.width = Math.round(src.width * scale);
+    out.height = Math.round(src.height * scale);
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(src, 0, 0, out.width, out.height);
+    return out;
+  }
+  return src;
+}
+
+function currentMime() {
+  const f = el.outputFormat.value;
+  return f === 'png' ? 'image/png' : f === 'webp' ? 'image/webp' : 'image/jpeg';
+}
+
+const updateEstimatedSize = debounce(() => {
+  if (!state.working) { el.estimatedSize.textContent = '—'; return; }
+  const source = getExportSource();
+  if (!source.width) { el.estimatedSize.textContent = '—'; return; }
+  const mime = currentMime();
+  const q = parseInt(el.compressQuality.value, 10) / 100;
+  if (source.toBlob) {
+    source.toBlob(blob => {
+      el.estimatedSize.textContent = blob ? formatBytes(blob.size) : '—';
+    }, mime, q);
+  } else {
+    el.estimatedSize.textContent = '—';
+  }
+}, 420);
+
+function buildFileName() {
+  const mime = currentMime();
+  const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+  const lat = parseFloat(el.lat.value);
+  const lng = parseFloat(el.lng.value);
+  const coords = Number.isFinite(lat) && Number.isFinite(lng)
+    ? `${lat.toFixed(4)}_${lng.toFixed(4)}` : 'tanpa-koordinat';
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const stamp = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  return `Geotag_${coords}_${stamp}.${ext}`;
+}
+
+function downloadImage() {
+  if (!state.working) { toast('Unggah foto terlebih dahulu.', 'warning'); return; }
+  const source = getExportSource();
+  const mime = currentMime();
+  const q = parseInt(el.compressQuality.value, 10) / 100;
+  source.toBlob(blob => {
+    if (!blob) { toast('Gagal membuat berkas gambar.', 'error'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = buildFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast(`Foto berhasil diunduh (${formatBytes(blob.size)}).`, 'success');
+  }, mime, q);
+}
+
+el.downloadBtn.addEventListener('click', downloadImage);
+el.downloadBtnMain.addEventListener('click', downloadImage);
+
+/* ============================================================
+   22. GOOGLE DRIVE
+   ============================================================ */
+function loadDriveConfigToUI() {
+  el.driveWebAppUrl.value = state.drive.webAppUrl || '';
+  el.driveSpreadsheetId.value = state.drive.spreadsheetId || '';
+  el.driveFolderId.value = state.drive.folderId || '';
+  el.driveSheetName.value = state.drive.sheetName || 'Geotag';
+}
+
+function pullDriveConfigFromUI() {
+  state.drive.webAppUrl = el.driveWebAppUrl.value.trim();
+  state.drive.spreadsheetId = el.driveSpreadsheetId.value.trim();
+  state.drive.folderId = el.driveFolderId.value.trim();
+  state.drive.sheetName = el.driveSheetName.value.trim() || 'Geotag';
+}
+
+function setDriveStatus(kind, html) {
+  el.driveStatus.className = 'drive-status ' + (kind || '');
+  const iconMap = {
+    ok: 'fa-circle-check',
+    err: 'fa-circle-exclamation',
+    info: 'fa-circle-info',
+    loading: 'fa-spinner fa-pulse'
+  };
+  el.driveStatus.innerHTML = `<i class="fas ${iconMap[kind] || 'fa-circle-info'}"></i><span>${html}</span>`;
+}
+
+function updateDriveStatusIdle() {
+  const hasConfig = state.drive.webAppUrl && state.drive.spreadsheetId && state.drive.folderId;
+  if (!hasConfig) {
+    setDriveStatus('', 'Konfigurasi belum lengkap. Buka <strong>Konfigurasi Apps Script &amp; ID</strong> untuk mengisi URL dan ID.');
+    return;
+  }
+  const descLen = (state.settings.description || '').trim().length;
+  const descInfo = descLen > 0
+    ? `Deskripsi kegiatan siap disimpan (${descLen} karakter).`
+    : 'Belum ada deskripsi kegiatan — kolom Deskripsi Kegiatan di spreadsheet akan kosong.';
+  setDriveStatus('info',
+    `Siap menyimpan. ${descInfo} Tekan tombol <strong>Simpan ke Google Drive</strong> untuk mulai.`);
+}
+
+el.driveConfigToggle.addEventListener('click', () => {
+  el.driveConfig.classList.toggle('show');
+  el.driveConfigToggle.classList.toggle('open');
+});
+
+el.appsscriptToggle.addEventListener('click', () => {
+  el.appsscriptBox.classList.toggle('show');
+  el.appsscriptToggle.classList.toggle('open');
+});
+
+el.copyAppsScript.addEventListener('click', async () => {
+  const code = el.appsscriptCode.textContent;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Kode Apps Script disalin ke clipboard.', 'success');
+  } catch (_) {
+    toast('Gagal menyalin. Salin manual dari kotak kode.', 'warning');
+  }
+});
+
+el.driveSaveConfig.addEventListener('click', () => {
+  pullDriveConfigFromUI();
+  saveDriveConfig();
+  toast('Konfigurasi Drive disimpan.', 'success');
+  updateDriveStatusIdle();
+});
+
+el.driveTestBtn.addEventListener('click', async () => {
+  pullDriveConfigFromUI();
+
+  if (!state.drive.webAppUrl) {
+    setDriveStatus('err', 'URL Web App belum diisi.');
+    toast('URL Web App belum diisi.', 'error');
+    return;
+  }
+
+  setDriveStatus('loading', 'Menguji koneksi ke Apps Script…');
+
+  try {
+    const url = state.drive.webAppUrl + (state.drive.webAppUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+    const res = await fetch(url, { method: 'GET' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.status === 'ok') {
+      setDriveStatus('ok', '<strong>Koneksi berhasil!</strong> Apps Script merespons dengan baik. Siap menyimpan foto.');
+      toast('Koneksi Apps Script OK.', 'success');
+    } else {
+      setDriveStatus('err', 'Apps Script merespons tetapi status tidak dikenal. Periksa deployment Anda.');
+      toast('Respons Apps Script tidak sesuai.', 'warning');
+    }
+  } catch (err) {
+    setDriveStatus('err', 'Gagal terhubung: <strong>' + escapeHtml(err.message || String(err)) + '</strong>. Pastikan Web App dideploy dengan akses <em>Siapa saja</em>.');
+    toast('Gagal menguji koneksi.', 'error');
+  }
+});
+
+el.saveDriveBtn.addEventListener('click', () => saveToDrive());
+
+async function saveToDrive() {
+  if (state.savingDrive) return;
+  if (!state.working) { toast('Unggah foto terlebih dahulu.', 'warning'); return; }
+
+  pullDriveConfigFromUI();
+
+  if (!state.drive.webAppUrl) {
+    setDriveStatus('err', 'URL Web App belum diisi. Buka konfigurasi dan isi terlebih dahulu.');
+    toast('URL Web App belum diisi.', 'error');
+    el.driveConfig.classList.add('show');
+    el.driveConfigToggle.classList.add('open');
+    return;
+  }
+  if (!state.drive.spreadsheetId || !state.drive.folderId) {
+    setDriveStatus('err', 'Spreadsheet ID atau Folder ID belum diisi.');
+    toast('Lengkapi Spreadsheet ID dan Folder ID.', 'error');
+    el.driveConfig.classList.add('show');
+    el.driveConfigToggle.classList.add('open');
+    return;
+  }
+
+  saveDriveConfig();
+
+  state.savingDrive = true;
+  const originalHTML = el.saveDriveBtn.innerHTML;
+  el.saveDriveBtn.disabled = true;
+  el.saveDriveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunggah…';
+  setDriveStatus('loading', 'Mengirim foto &amp; metadata ke Google Drive…');
+
+  try {
+    const source = getExportSource();
+    const mime = currentMime();
+    const q = parseInt(el.compressQuality.value, 10) / 100;
+
+    const base64 = await new Promise((resolve, reject) => {
+      try {
+        const dataUrl = source.toDataURL(mime, q);
+        const idx = dataUrl.indexOf(',');
+        resolve(dataUrl.slice(idx + 1));
+      } catch (err) { reject(err); }
+    });
+
+    const lat = parseFloat(el.lat.value);
+    const lng = parseFloat(el.lng.value);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+    const payload = {
+      fileName: buildFileName(),
+      mimeType: mime,
+      base64: base64,
+      lat: hasCoords ? lat.toFixed(6) : '',
+      lng: hasCoords ? lng.toFixed(6) : '',
+      coords: hasCoords ? formatCoords(lat, lng, state.settings.format) : '',
+      address: el.wmAddress.value || '',
+      description: (el.deskripsiInput.value || '').trim(),
+      photoTime: el.wmTime.value || '',
+      title: el.wmTitle.value || '',
+      width: source.width,
+      height: source.height
+    };
+
+    const res = await fetch(state.drive.webAppUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    const data = await res.json();
+
+    if (data && data.success) {
+      const link = data.fileUrl
+        ? `<a href="${escapeHtml(data.fileUrl)}" target="_blank" rel="noopener">Buka file di Drive</a>`
+        : '';
+      const descNote = payload.description
+        ? 'Deskripsi kegiatan tersimpan.'
+        : '<em>Tanpa deskripsi kegiatan.</em>';
+      setDriveStatus('ok',
+        `<strong>Berhasil disimpan!</strong><br>
+         ${escapeHtml(data.fileName || payload.fileName)} telah diunggah ke Drive dan tercatat di Spreadsheet.<br>
+         ${descNote}<br>
+         ${link}`);
+      toast('Foto berhasil disimpan ke Google Drive!', 'success', 4200);
+      markDone('export');
+      markDone('description', true);
+    } else {
+      const errMsg = (data && data.error) ? data.error : 'Respons tidak dikenal dari Apps Script.';
+      setDriveStatus('err', `<strong>Gagal menyimpan:</strong> ${escapeHtml(errMsg)}`);
+      toast('Gagal menyimpan ke Drive.', 'error');
+    }
+
+  } catch (err) {
+    console.error(err);
+    setDriveStatus('err',
+      `<strong>Gagal menyimpan:</strong> ${escapeHtml(err.message || String(err))}.<br>
+       Periksa URL Web App, izin akses (<em>Siapa saja</em>), dan pastikan Apps Script telah dideploy ulang setelah perubahan.`);
+    toast('Terjadi kesalahan saat menyimpan.', 'error');
+  } finally {
+    state.savingDrive = false;
+    el.saveDriveBtn.disabled = false;
+    el.saveDriveBtn.innerHTML = originalHTML;
+  }
+}
+
+/* ============================================================
+   23. PINTASAN PAPAN TIK
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); downloadImage(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') { e.preventDefault(); el.fileInput.click(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (!el.saveDriveBtn.disabled) saveToDrive();
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (state.cropMode) { exitCropMode(); toast('Mode crop dibatalkan.', 'info', 2000); }
+    else if (el.sidebar.classList.contains('open')) closeSidebar();
+    else if (el.suggestions.classList.contains('show')) el.suggestions.classList.remove('show');
+    return;
+  }
+  if (typing) return;
+  if (e.key === '1') switchPanel('upload');
+  if (e.key === '2') switchPanel('location');
+  if (e.key === '3') switchPanel('watermark');
+  if (e.key === '4') switchPanel('description');
+  if (e.key === '5') switchPanel('preview');
+  if (e.key === '6') switchPanel('export');
+  if (e.key === '+' || e.key === '=') setZoom(state.view.zoom * 1.2);
+  if (e.key === '-' || e.key === '_') setZoom(state.view.zoom / 1.2);
+  if (e.key === '0') fitView();
+});
+
+/* ============================================================
+   24. RESIZE
+   ============================================================ */
+const onResize = debounce(() => {
+  if (state.working && document.getElementById('panel-preview').classList.contains('active')) {
+    const oldZoom = state.view.zoom;
+    const oldCrop = state.cropMode ? { ...state.crop } : null;
+
+    setupViewport();
+
+    if (state.cropMode && oldCrop && oldCrop.w > 0) {
+      const scaleX = state.viewSize.w / (state.crop._vw || state.viewSize.w);
+      const scaleY = state.viewSize.h / (state.crop._vh || state.viewSize.h);
+      const scale = Math.min(scaleX, scaleY);
+
+      state.crop.w = oldCrop.w * scale;
+      state.crop.h = oldCrop.h * scale;
+      state.crop.x = (state.viewSize.w - state.crop.w) / 2;
+      state.crop.y = (state.viewSize.h - state.crop.h) / 2;
+      clampCropToViewport();
+      enforceCover();
+    }
+
+    if (Math.abs(oldZoom - 1) > 0.01) setZoom(oldZoom);
+    else drawViewport();
+  }
+}, 200);
+
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+
+/* ============================================================
+   25. INISIALISASI
+   ============================================================ */
+function applyStoredSettings() {
+  const s = state.settings;
+  el.coordFormat.value = s.format;
+  el.compressQuality.value = s.quality;
+  el.compressValue.textContent = s.quality + '%';
+  el.outputFormat.value = s.outputFormat;
+  el.maxWidth.value = String(s.maxWidth);
+  el.chkMap.checked = s.showMap;
+  el.chkCoords.checked = s.showCoords;
+  el.chkAddress.checked = s.showAddress;
+  el.chkDesc.checked = s.showDesc;
+  el.chkTime.checked = s.showTime;
+  el.wmPosition.value = s.position;
+  el.wmFontScale.value = s.fontScale;
+  el.fontScaleValue.textContent = s.fontScale + '%';
+  el.chkLabels.checked = s.labels;
+  if (s.title) el.wmTitle.value = s.title;
+  if (s.address) el.wmAddress.value = s.address;
+  if (s.description) el.deskripsiInput.value = s.description;
+}
+
+function initTime() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  el.wmTime.value = d.toISOString().slice(0, 16);
+}
+
+function init() {
+  applyStoredSettings();
+  loadDriveConfigToUI();
+  initTime();
+  updateCoordPreview();
+  updateDescCounter();
+  updateEstimatedSize();
+  refreshPreviewPanel();
+  updateDriveStatusIdle();
+
+  el.wmTitle.addEventListener('input', () => {
+    state.settings.title = el.wmTitle.value;
+    saveSettings();
+  });
+  el.wmAddress.addEventListener('input', () => {
+    state.settings.address = el.wmAddress.value;
+    saveSettings();
+  });
+
+  [el.driveWebAppUrl, el.driveSpreadsheetId, el.driveFolderId, el.driveSheetName].forEach(f => {
+    f.addEventListener('input', () => {
+      pullDriveConfigFromUI();
+      saveDriveConfig();
+    });
+  });
+}
+
+init();
+
+window.addEventListener('beforeunload', () => {
+  if (state.map) state.map.remove();
+});
+
+})();
+</script>
+</body>
+</html>
